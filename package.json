@@ -1,0 +1,13 @@
+{
+    "name": "es6",
+    "version": "1.0.0",
+    "main": "main.js",
+    "scripts": {
+        "build": "webpack"
+    },
+    "devDependencies": {
+        "webpack": "^3.8.1"
+    },
+    "dependencies": {
+    }
+}
