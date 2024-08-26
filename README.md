@@ -34,12 +34,12 @@ You can compile any valid ITA script with `compiler.compile(src)`.
 
 ### Write an ITA script
 
-ITA is a small language (or, to be accurate, a set of languages, but we'll see about that later) that has a pretty simple, yet very volatile syntax. An ITA script consists solely of a list of _expressions_, which may, or may not, be executed in the top-to-bottom standard fashion. We separe operations by semicolons, the last one being optional, and the script may include comments, wrapped inside a `[[ ... ]]` pair.
+ITA is a small language (or, to be accurate, a set of languages, but we'll see about that later) that has a pretty simple, yet very volatile syntax. An ITA script consists solely of a list of _expressions_. We separe expressions by semicolons, the last one being optional, and the script may include comments, wrapped inside a `[[ ... ]]` pair.
 
 This is one of the smallest scripts you could ever write, yet it's perfectly valid :
 
 ```
-1+1; [[ Note that this ';' is optional ]]
+1+1; [[ Note that this ';' is optional, as 1+1 is the last expression ]]
 ```
 
 Every operator you declared previously might be used, but any other operator will induce a syntax error :
@@ -87,11 +87,13 @@ If several operators with the same precedence are encoutered in a single express
 
 ### The long-awaited list of keywords
 
-Here's the list of all keywords of the language : 
+Now for the the list of all keywords of the language : 
 
 No keywords, actually ! Instead, we got hash operators. These are operators that start with `#` (hence the name), followed by one or more letters : `#hello` or `#world` for instance.  These are used just like normal, symbol-based operators, and allow for nicer syntax when needed : `elem >?> myList` is pretty obfuscated, while `elem #in myList` is crystal clear !
 
 > If you wonder, here are the symbols that can be used in symbolic operators : `&|~^@=+°$*%!§/:.,?!<>`. Any combination of such symbols is a valid operator.
+
+I repeat : these do not differ from standard operators like `+`, and it's only a matter of stylistic preference.
 
 ### Macros
 
@@ -109,7 +111,7 @@ macroName(arg1; arg2; ...; argn;) {
 Which is much more complicated than anything we've seen until there, but bear with me.  
 The thing between parentheses is called the argument list, the thing between curly brackets is known as the body.
 
-`arg1` (etc) as well as `statement1` (etc) are meant to be valid expressions. For both, the final semicolon is optional.
+`arg1` (etc) as well as `statement1` (etc) should be valid expressions. For both, the final semicolon is optional.
 If the argument list is empty, parentheses can be dropped, so this is valid syntax :
 
 ```
@@ -150,16 +152,15 @@ compiler.compile("1+1*1;")
 ```
 
 > "But... wait ! I do want my code to do something, somehow !".   
-> Me too ! That's where it gets interesting.
 
-Remember the two other arguments we passed to the compiler ? It's time to actually understand what they do.
+Me too ! That's where it gets interesting. Remember the two other arguments we passed to the compiler ? It's time to actually understand what they do.
 
 ### Go touch some grass
 
 First, let's talk about trees. 
-In a typical programming language, before truly executing (or compiling, or transpiling, or whatever) the program, it's usually translated in a much more practical form, called an _Abstract Syntactic Tree_ (or AST), and ITA is no exception to that.
+In a typical programming language, before doing anything with a script, said script is usually translated in a much more practical form, called an _Abstract Syntactic Tree_ (or AST), and ITA is no exception to that.
 
-Behind this daunting name hides a rather simple thing. Here's what it means. When you write `1+(2*3);`, for example, it's translated to something that roughly looks like `{ op: '+', args: [1, { op: '*', args: [2, 3] }] }`. It appears uglier, but it's now standard javascript and, as such, you can manipulate it just fine.
+Behind this daunting name hides a rather simple thing. Here's what it means. When you write `1+(2*3);`, for example, it's translated to something that roughly looks like `{ op: '+', args: [1, { op: '*', args: [2, 3] }] }`. It appears uglier, but it's now standard javascript and, as such, it's much easier for a program to manipulate it.
 
 > The name comes from the fact you can represent it like so :
 
@@ -171,15 +172,15 @@ Behind this daunting name hides a rather simple thing. Here's what it means. Whe
     2   3
 ```
 
-> Which, if flipped, looks somewhat like a tree.
+> Which, if flipped, looks (somewhat, don't expect an computer scienticist to know what a tree is) like a tree.
                      
-In standard languages, it's more often than not not visible by the user, and directly used by the compiler. In ITA, however, once the ASTs for the whole script are obtained (we say the script has been _parsed_), it's passed down to **you**, so you can do whatever you want with it.
+In standard languages, it's, more often than not, **not** visible by the user, and directly used by the compiler to perform actions. In ITA, however, once the ASTs for the whole script are obtained (we say the script has been _parsed_), it's passed down to **you**, so you can do whatever you want with it.
 
 > We don't need to understand how ASTs are implemented for now, but we'll talk about it later.
 
 ### Macros, again
 
-And that's where macros kick in ! Conceptually, macros are functions that are meant to execute code. The constructor of a `Macro<T>` takes three required arguments :
+And that's where macros kick in ! Conceptually, macros are functions that are meant to execute parsed code. The constructor of a `Macro<T>` takes three required arguments :
 * A `string`, its name, by which it will be refered,
 * A `number | [number, number]`, its arity, which indicates how many parameters it takes ; we'll come back to that later,
 * A very complicated `(ev: Evaluator<T>, body: AST[], args: AST[], limbs: { [limb: string]: AST }) => T` function called the _reducer_. That's the most important component of a macro.
@@ -196,7 +197,7 @@ It calls the reducer with these args :
 Each AST of the list is one expression inside your script. So if your script was `1+1; 2+2; 3+3;`, it has a length of 3. 
 
 
-> For now on, a `T` will keep popping in signatures. That's the same `T` there is in `ITACompiler<T>`, and it means a compiler (along with its operators and macros) must manipulate one single data type. We just bypass that restriction for now by using `T = any`, allowing us to pass in `void`, `number`s and `string`s as we like
+> From now on, a `T` will keep popping in signatures. That's the same `T` there is in `ITACompiler<T>`, and it means a compiler (along with its operators and macros) must manipulate one single data type. We just bypass that restriction for now by using `T = any`, allowing us to pass in `void`, `number`s and `string`s as we like
 
 The magic resides inside the `ev` function. 
 Its signature is `(ast: AST, operators: Operator<T>[] = [], macros: Macro<T>[] = []) => T`, and here's how you use it. Suppose we just want to evaluate sequentially every expression inside your script. We would write :
@@ -223,7 +224,7 @@ let scriptMacro = new Macro(
 
 And that's done ! Well, almost. Remember how I said that the ITA compiler has absolutely no idea about semantics ? That still holds. So how would it know that `+` adds two numbers and `*` multiplies them ?
 
-By passing in operators (of type `Operator<T>[]`) as the first argument, you implement the actual behavior of such operators.
+By passing in operators (of type `Operator<T>[]`) as the first argument to `ev`, you implement the actual behavior of such operators.
 Let's declare the `+`, for instance :
 
 ```js
@@ -247,7 +248,7 @@ let scriptMacro = new Macro(
         let macros = []
 
         for (let expr of body) {
-            // Here, the expression is evaluated, and every time a '+' is encountered, 
+            // Here, the expressions are evaluated, and every time a '+' is encountered, 
             // it will add its operands together !
             ev(expr, ops, macros)
         }
@@ -329,10 +330,16 @@ let scriptMacro = new Macro(
 We can then use it inside our script like this : 
 
 ```
-if (true) {
+[[ This will evaluate ]]
+if (1) {
     1+1;
     2+2;
-};  [[ Notice the ';' : if still is an expression !  ]]
+};
+
+[[ This won't  ! ]]
+if (0) {
+    0*0;
+}
 ```
 
 And it will behave like a "real" if. Pretty neat, right ?
@@ -359,23 +366,22 @@ If an operator/macro **that already exist outside** of the `if` is passed to `ev
 
 ### ITA knows nothing about numbers
 
-The title speaks for it : knowing what to do with numbers would be semantics, and ITA don't know anything about semantics !
+Let's solve the weird error about the `#number` operator we mentioned above. The title actually speaks for it : knowing what to do with numbers would be semantics, and ITA don't know anything about semantics !
 
 Numbers inside an ITA script are, in fact, syntactic sugar for something called literals. 
 
 > A literal don't have any equivalent in a script, so I'll use backticks (`) to write them, even if it's no actual syntax.
 
-What happens when you write `1`, for instance, is that the ast generated is equivalent to an operation with the special hash operator `#number`, and one single operand under the form of an AST, called a literal (and written \`1\`).  
-However, that literal, is, like I said, an AST, and operators expect **evaluated ASTs** as arguments.
+Literals are, like the name suggests, literal excerpts of the source code. They only exist as internal ASTs.
 
-This is where the third argument to the `ITACompiler` constructor is useful ! Every time a literal must be evaluated, the compiler calls the lift function with a string, representing the literal, as its argument to evaluate it, and the result is returned.
+What happens when you write `1`, for instance, is that it implicitely generates an AST as if you applied operator `#number` to the literal \`1\`. 
 
-This is a small (ugly) diagram to make you understand :
+However, that literal is, like anything else, an AST, and operators expect **evaluated ASTs** as arguments. It therefore mean we must be able to evaluate the literal before doing anything with it.
 
-1 --> literal AST \`1\` --> lift("1") --> #number --> We get a true number !
+This is where the lift function comes into play ! Every time a literal must be evaluated, the compiler calls the lift (which lifts, or promotes, the literal to a true value to be passed around) function with a string, representing the literal, as its argument, and the result is returned.
 
-Suppose now we want to actually implement numbers.
-* We have to replace the dummy `_ => {}` lift function in our compiler by a true lift function. Since lift takes a string as an argument, and that evaluating a literal can, without too much imagination, return a string, we'll just return the literal itself : `literal => literal`
+Suppose we now want to actually implement numbers.
+* We have to replace the dummy `_ => {}` lift function in our compiler by a true lift function. Since lift takes a string  representing a literal as an argument, and that evaluating a literal can, without too much imagination, return that same string, we'll just return the literal itself : `literal => literal`
 * We have to implement the `#number` operator, which you will then have to pass to `ev` along with `+`.
 
 ```js
@@ -387,22 +393,20 @@ let numberOp = new Operator(
 )
 ```
 
-What happens now is :
+And this will work just like you expected it to !
 
-1 --> literal AST `1` --> lift("1") --> "1" --> parseFloat("1") --> true Javascript 1 !
-
-Just like we expected it to !
+> While this may seem like overcomplicating things (and maybe is), this was done to strictly ensure syntax and semantics stay entirely disjoint. Besides, it actually offers tangible benefits, which we'll study later.
 
 ### ITA knows nothing about strings and names either
 
-I think you got it : when ITA comes across a string, it calls the special operator `#string` with a literal representing the string (for "Hello world !", it would be \`Hello world !\`) as its sole argument.
+I think you got it : when ITA comes across a string, it calls the special operator `#string` with a literal representing the string (for "Hello world !", it would be \`Hello world !\`) as its sole operand.
 
-Same goes with names, such as `foo` : the `#name` operator is called with \`foo\` as its sole argument.
+Same goes with names, such as `foo` : the `#name` operator is called with \`foo\` as its only operand.
 
 You can implement the `#string` and `#name` operators depending on your needs ; without them, strings and names respectively are not usable inside your script.
 
 
-## A sample script
+### A sample script
 
 I put here everything we've seen until now, so that you see how everything works together !
 
@@ -430,7 +434,8 @@ let ifMacro = new Macro(
     "if",
     1,
     (ev, body, args) => {
-        if (ev(args[0])) {
+        let [condition] = args
+        if (ev(condition)) {
             body.forEach(expr => ev(expr))
         }
     }
@@ -449,7 +454,7 @@ let scriptMacro = new Macro(
 )
 
 let compiler = new ITACompiler(
-    ["#number", "*", "+"],
+    ["#number", "*", "+"],  // Don't forget to declare the #number operator !
     literal => literal,
     scriptMacro
 )
@@ -464,13 +469,138 @@ compiler.compile(src)
 ```
 1+1;
 
+[[ The body won't evaluate ! ]]
 if (0) {
     2*2;
 };
 
+[[ 3+3 will evaluate. ]]
 if (1) {
     3+3;
 };
 ```
 
-This will evaluate `1+1`, then skip the `if (0) {...}` (since 0 is not truthy), and execute the `3+3` inside the `if (1) {...}`.
+
+## Operators
+
+> "Why'd you write another chapter entirely focused on operators ? Haven't we covered must of it already ??"
+
+Nope we don't. Actually, we didn't talk a lot about operators until now. We'll cover many useful syntactic features here, which are very important to code in ITA.
+
+Did you notice how `Operator` takes in an `arity` argument too ? Until there, we exclusively used _binary operators_ (which means "operators with an arity of two"), but these are not the only ones to exist.
+
+> Remembre that operators always need to update their arity accordingly to be used in the ways that will follow !
+
+### 2 is good, but 1 is better.
+
+We can use operators in a unary way by prefixing an expression with said operator. That allows for JS-like syntax, for example with `!expr` : `!` here acts as an unary operator applied to `expr`, presumably negating expr.
+
+Operator precedences still apply, but only at the right of the operator, as unary operators automatically bind tighter than everything on their left side.
+
+So `1*+1` is parsed as `1*(+1)` since unary operators bind tighter that everything there is on their left, but `+1*1` is parsed as `+(1*1)` since precedence on the right side works normally and `*` binds tighter than `+`. This may seem weird, but it's actually pretty common behavior that is seen in many other languages.
+
+> If this confuses you, don't think too much about it ; it is intended to conform to your intuition.
+
+This, combined with hash operators, allows for rather cool syntax reminiscent of python 2.0, with directives-like expressions such as `#print (1*2)`. 
+
+> By making `#print` low precedence, you can even get rid of the parentheses ! 
+
+### Ternary (and more) operators
+
+You can't pass more than two operands simultaneously to an operator with the syntax bits we've seen until there. 
+I therefore introduce to you the _pack_ syntax.  
+
+The pack syntax is rather simple and comes from the fact it allows to "pack" operands for a single operator. You just need to wrap an expression containing only one type of operators inside brackets. For example :
+
+```
+[[ This will apply + to operands 1, 2, 3 simultaneously ]]
+[[ Writing 1+2+3 without the brackets would have resulted in + applying to (1+2) and 3 instead. ]]
+
+[1 + 2 + 3];
+```
+
+This is called a ternary operator (arity of 3), but you can use the pack syntax to give whatever number of arguments you like, including 2. Also note that an optional trailing operator may be added : 
+
+```
+[[ Still valid and does the same thing ]]
+
+[1 + 2 + 3 +]; 
+```
+
+This allows, among other things, to use the pack syntax for suffix unary operators : `[1+]` is exactly the same as `+1`.
+
+There's several little catches you might want to be aware of. First, a pair of brackets with only an operand inside or even worse, an empty pair of brackets, are both illegal, since the compiler won't know what operator to use :
+
+```
+[]; [[ Whoops ! ]]
+[0]; [[ Doesn't work either ]]
+```
+
+For the same reason, mixing operators is forbidden : 
+
+```
+[ 1 + 2*3 + 4 ]  [[ Syntax error : it's ambiguous whether you want to pack on * or + ]]
+[ 1 + (2*3) + 4 ] [[ Works fine. ]]
+```
+
+Second, due to the syntax of comments, you must be cautious when nesting one bracket expression inside another. Anytime `[[` is encoutered, the compiler enters comment mode until it finds the matching `]]`. So if you want to write something like this :
+
+```
+[[ 1 + 2 + 3 ] + 4 + 5 + 6]
+```
+
+You need to space out the second bracket :
+
+```
+[ [1 + 2 + 3] + 4 + 5 + 6 ]
+```
+
+Third and last on our list, you can't make a bracket expression start with an unary operation. Suppose we have declared operators `!`, `&&`, `||` in that order (standard JS boolean operations). If we write :
+
+```
+[!false || true]  [[ Wrong but no syntax error, see below ]]
+[(!false) || true] [[ Works like you'd expect ]]
+```
+
+This would yield an AST applying `!` to `(false || true)`, although `!` binds tighter than `||` ! Which brings us to our next point : _prefix pack syntax_ (standard pack syntax being refered to as _infix pack syntax_ when there's an ambiguity).
+
+If the left bracket is immediately followed by an operator, it is parsed in prefix mode : every expression (separated by semicolons, last one optional, you know the deal by now) inside the bracket is parsed, then that operator is applied to all of them at once. Writing `[+ 1; 2; 3]` therefore is the exact same as `[1 + 2 + 3]` ! And that's also why `[!false || true]` yields `!(false || true)` : `!` is encountered, the compiler enters prefix mode, `false || true` is parsed, then passed to `!`.
+
+> `[+1]` is by that last rule valid syntax and yields the same as `+1` and `[1+]` ! Down to the bone, choosing which one you want to use mostly is a matter of style, as these three truly are the exact same.
+
+### Nullary operators
+
+Have you ever tried applying an operator to nothing ?
+
+```
+#pi;  [[ With #pi an operator taking no operands and returning 3.1415... ]]
+```
+
+This will crash, actually, with `Unexpected character ';'` or something similar. This is because it sees `#pi` an unary operator here, and when it encounters the semicolon, it doesn't understand why there isn't any operand following it.
+
+To call an operator with 0 arguments, you thus need to enclose it in square brackets : `[#pi];` is correct and yields the expected result. 
+
+> While this may seem like somewhat new syntax, this is actually the prefix pack operator doing its job !
+
+### Special operators : `#call` and `#index`
+
+Ever wondered why the `{}` following a macro are not optional ?   
+That's actually because they are needed to disambiguate macro syntax from a special operator called... well, `#call`. When an expression of the form `callee(arg1; ...; argn;)` (lAsT sEmIcOLoN OpTiONal) is encountered, `called` as well as `arg1`, ..., `argn` are parsed, then passed together to the special `#call` operator in that order.
+
+> `callee` can be any expression, and, in particular, it can be a name. `myMacro()` would therefore be parsed as applying `#call` to name `myMacro`, which likely isn't what you want here. Adding `{}` at the end forces the compiler to parse that as a macro, since `(myMacro()) {}` doesn't make sense.
+
+This is actually very cool syntax, since function call-like expressions are thereby valid !
+
+```
+myFunction(1; 2; 3);  [[ Same as [#call myFunction; 1; 2; 3] ]]
+```
+
+Note that semicolons tell arguments apart from each other, not comas. Comas are regular operators, and `f(1,2,3)` is actually `[#call f; (1,2,3)]`. This might take some time for you to get used to it.
+
+> Using `#call` without that added syntactic sugar is not considered a bad practice, and you can write `[#call f]` or `#call f` instead of `f()` if you prefer. Writing `[f #call 1 #call 2]` for `f(1; 2)`, on the other hand, is very unclear and therefore not recommanded.
+
+Same goes for `x[arg1; ...; argn;]` (last semicolon optional) with the `#index` operator : it will be translated to `[#index x; arg1; ...; argn]`, so that you can write `myArray[0]` to mean `myArray #index 0`. Neat, isn't it ?
+
+> Don't forget that `#call` and `#index` arity is one more than what you would expect, because the thing that's called/indexed is itself an argument to it. Declaring `#index` with an arity of 1 would actually only allow expressions of the form `x[]` !
+
+Such expressions can be nested : `x[0][1]` is `[#index [#index x; 0]; 1]`, `f()()` is `[#call [#call f]]`, and `x[0]()` is `#call (x #index 0)`. If you wish to call/index complex expressions, wrapping them inside parentheses works just fine.
