@@ -1,5 +1,5 @@
-import { ITACompiler } from "./ITA";
-let example = new ITACompiler(_ => { }, (args, body) => console.log(args, body), {
+import { MicroCompiler } from "./Micro";
+let example = new MicroCompiler(_ => { }, (args, body) => console.log(args, body), {
     "+": 10,
     "*": 20
 });

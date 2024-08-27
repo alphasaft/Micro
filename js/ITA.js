@@ -4,7 +4,7 @@ function error(msg) {
 function between(a, b, x) {
     return a <= x && x <= b;
 }
-export class ITACompiler {
+export class MicroCompiler {
     constructor(evalLiteral, scriptMacro, operatorsPrecedence) {
         this.evalLiteral = evalLiteral;
         this.scriptMacro = scriptMacro;
@@ -14,16 +14,16 @@ export class ITACompiler {
         return i >= src.length;
     }
     isSymbolicOperatorChar(src, i) {
-        return !this.isEOF(src, i) && ITACompiler.OPERATOR_CHARS.includes(src[i]);
+        return !this.isEOF(src, i) && MicroCompiler.OPERATOR_CHARS.includes(src[i]);
     }
     isWhitespace(src, i) {
-        return !this.isEOF(src, i) && ITACompiler.WHITESPACE_CHARS.includes(src[i]);
+        return !this.isEOF(src, i) && MicroCompiler.WHITESPACE_CHARS.includes(src[i]);
     }
     isLetter(src, i) {
         return !this.isEOF(src, i) && src[i].toLowerCase() !== src[i].toUpperCase();
     }
     isNumber(src, i) {
-        return !this.isEOF(src, i) && between(ITACompiler.zeroCC, ITACompiler.nineCC, src.charCodeAt(i));
+        return !this.isEOF(src, i) && between(MicroCompiler.zeroCC, MicroCompiler.nineCC, src.charCodeAt(i));
     }
     flush(src, i) {
         let j = i;
@@ -330,10 +330,10 @@ export class ITACompiler {
         return this.eval(ast, {}, { script: this.scriptMacro });
     }
 }
-ITACompiler.WHITESPACE_CHARS = "\n\t ";
-ITACompiler.OPERATOR_CHARS = "&|~`^@=+°$£*%!§/:.,?!<>";
-ITACompiler.zeroCC = '0'.charCodeAt(0);
-ITACompiler.nineCC = '9'.charCodeAt(0);
+MicroCompiler.WHITESPACE_CHARS = "\n\t ";
+MicroCompiler.OPERATOR_CHARS = "&|~`^@=+°$£*%!§/:.,?!<>";
+MicroCompiler.zeroCC = '0'.charCodeAt(0);
+MicroCompiler.nineCC = '9'.charCodeAt(0);
 /*
 
 [[ Comments are declared using double brackets. ]]
@@ -396,4 +396,4 @@ json = {
 };
 
 */ 
-//# sourceMappingURL=ITA.js.map
+//# sourceMappingURL=Micro.js.map
