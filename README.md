@@ -1,9 +1,9 @@
 # Micro
 
-Micro is a tool for creating efficient languages adapted to your needs, allowing you to describe whatever data you'd like in a elegant and concise way. Here's an example of a Micro script designed to express todo lists :
+Micro is a small library (~600 lines of code) for creating languages adapted to your needs, allowing you to describe whatever data you'd like in a elegant and concise way. Here's an example of a Micro script designed to express todo lists :
 
 ```
-todo ("Main todo list") {
+todo("Main todo list") {
     #critical "Pay my taxes";
     #important "Clean my room";
 
@@ -11,12 +11,12 @@ todo ("Main todo list") {
     #important "Watch " + ?currentShow;
 };
 
-todo ("For my holidays") {
+todo("For my holidays") {
     #critical uppercase("Don't forget the keys !!!");
 };
 ```
 
-Micro allows you to easily create a language adapted to your needs using the generic Micro syntax, and to parse that language to generate usable JS values out of it.
+Micro scripts are all based on the same generic yet very polymorpheous syntax that you can adapt to your needs. Micro then allows you to quickly parse that language to generate usable JS values out of it.
 
 The tool itself is written in Javascript, and requires you to know this language before you can use it (You can learn Javascript [here](https://www.learn-js.org/)). Furthermore, I will quite often use typescript syntax to describe what types are expected.
 
@@ -47,7 +47,7 @@ The arguments passed to the `MicroCompiler<T>` (`T` being the output type for th
 - A `(literal: string) => T` function, called _lift_.
 - A `MacroReducer<T>`, which is a function known as the _script macro_.
 
-A `MicroCompiler<T>` is a javascript object meant to take in a _script_ (`string`) as input, and to output an object of type `T`.
+A `MicroCompiler<T>` is a javascript object meant to take in _scripts_ (`string`) as input, and to output an object of type `T`.
 
 Don't worry about what the arguments mean, we'll come back to it later. Just know that you thereby defined a compiler, that will compile your own version of the Micro language.
 
