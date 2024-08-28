@@ -510,9 +510,7 @@ So `1 * +1` is parsed as `1*(+1)` since unary operators bind tighter that everyt
 
 Notice that the space between `*` and `+` in the first expression is mandatory : `1*+1` would be parsed as the operator `*+` applied to two ones. 
 
-This, combined with hash operators, allows for rather cool syntax reminiscent of python 2.0, with directives-like expressions such as `#print 1*2`. 
-
-> Getting rid of parentheses around `1*2` was achieved by making that `#print` operator low precedence. 
+This, combined with low-precedence hash operators, allows for rather cool syntax reminiscent of python 2.0, with directives-like expressions such as `#print 1*2`.  
 
 ### Ternary (and more) operators
 
@@ -653,7 +651,7 @@ If you want to forbid string formatting in your scripts, all you have to do is t
 
 Macros are the building blocks of Micro, and that's why Micro adds quite a lot of useful syntactic sugar around them : It's time to talk about the [tweaks in macro syntax](#macros) I mentionned when introducing you to macros in the very beginning.
 
-The syntax bits we'll introduce here allows for... say, questionnable scripts :
+The syntax bits we'll introduce here permits to write... say, questionnable scripts :
 
 ```
 [[ That's valid ! But it's terribly written, and the syntax used is very confusing  ]]
@@ -664,7 +662,7 @@ if x(y) {{
 }}
 ```
 
-Macro extended syntax allows for pretty wild things, like the ones you see here, but just because you _can_ doesn't mean you _should_. Think twice before implementing a feature, and, when writing scripts, always seek clarity. If at any point your scripts start to look like the above, it means that something went horribly wrong along the way.
+Macro advanced syntax allows for pretty wild things, like the ones you see here, but just because you _can_ doesn't mean you _should_. Think twice before implementing a feature, and, when writing scripts, always seek clarity. If at any point your scripts start to look like the above, it means that something went horribly wrong along the way.
 
 ### Macro binding
 
@@ -732,11 +730,11 @@ Translated to :
 
 Cool, isn't it ?
 
-> That's where [that `if x(y) {{ ... }}`](#guess-what--were-not-done-with-macros) came from (why there was two curly brackets will follow later) : it's actually bind syntax translating to ```[#bind `x`; if (y) { ... }]```. Pretty confusing when you expect `x(y)` to be a function call, not even mentioning the fact that binding an `if` that way doesn't particularly make sense.
+> That's where [that `if x(y) {{ ... }}`](#guess-what--were-not-done-with-macros) came from (why there was two curly bracket pairs will follow later) : it's actually bind syntax translating to ```[#bind `x`; if (y) { ... }]```. Pretty confusing when you expect `x(y)` to be a `#call`, not even mentioning the fact that binding an `if` that way doesn't particularly make sense.
 
 ### Head, body, and limbs
 
-Behold : we're finally about to uncover the truth about that [mysterious `limbs` argument](#macros-again) that is passed to macro reducers !
+Behold : we're finally about to uncover the truth about that [mysterious fourth `limbs` argument](#macros-again) that is passed to macro reducers !
 
 We earlier wrote an `if` macro that worked pretty well : 
 
@@ -796,8 +794,6 @@ let ifMacro =
                 ev(expr)
             }
         }
-        
-        return create(nothing, undefined)
     }
 ```
 
@@ -830,6 +826,8 @@ If a limb is missing, its corresponding field in the `limbs` argument to the mac
 if { [[ Blah blah ]] }; 
 if { [[ Blah blah ]] } else {}; 
 ```
+
+> You thus can't check whether or not a limb is actually present.
 
 
 Don't overestimate limbs : a thing such as python's `elif` cannot be implemented with them (nor implemented at all) in Micro :
@@ -916,7 +914,7 @@ An `AST` is actually a plain JS object that always has two fields : `type` and `
 
 * An `operation` describes... well, an operation. It has two additionnal fields : `operator` (`string`) and `operands` (`AST[]`). So `1+1` would be : `{ metadata: ..., type: "operation", operator: "+", operands: [{ AST for 1 }, { AST for 1 }] }` (notice how `{ AST for 1 }` would in fact again be an `"operation"` with operator `#number`).
 
-* A `macro` describes a macro call. Its has 4 additionnal fields : `macro`, `body`, `args` and `limbs`, which all contain what you would expect (respectively the macro name as a string, the body as a list of ASTs, the arguments as a list of ASTs, and the limbs as an object whose fields are filled with a list of AST[] for each limb)
+* A `macro` describes a macro call. Its has 4 additionnal fields : `macro`, `body`, `args` and `limbs`, which all contain what you would expect (respectively the macro name as a string, the body as a list of ASTs, the arguments as a list of ASTs, and the limbs as an object whose fields are filled with a list of ASTs for each limb)
 
 And there's nothing more to know ! When `ev` is called on an `AST`, it checks the type, and performs the appropriate action : lifting a literal, applying the operator or calling the macro reducer.
 
@@ -962,9 +960,9 @@ switch (x) {
 
 As you can see, we didn't use limbs because one single `case` could be written, which would be pretty useless. `switch` instead will use two macros, `case` and `default`, as well as AST manipulation.
 
-We will need the `expect(type, ast, check?)` function (also from the `"./ast.js"` module). From the documentation : 
+We will need the `expect(type, ast, check?)` function (also from the `./ast.js` module). From the documentation : 
 
-> Checks that `ast` is of the correct type and that its passes `check`, then returns it.  
+> Checks that `ast` is of the correct type and that it passes `check`, then returns it.  
  @param type - The expected type of AST  
  @param ast - The AST to check  
  @param check - An additional check defaulting to `ast => true`  
@@ -975,7 +973,7 @@ We will need the `expect(type, ast, check?)` function (also from the `"./ast.js"
 { name: "case", arity: 1 }
 { name: "default", arity: 0 }
 
-// Operator declaration : switch implicitely use ==
+// Operator declarations : switch implicitely use ==
 { name: "==", arity: [2, Infinity] }
 
 let equalsOp = /* Implement it as you like */
@@ -1081,7 +1079,7 @@ let scriptMacro = ({ ev }, body) => {
 
 We can then use our quote operator so (assuming `#print` is an unary operator that prints its argument to the console): `#print '( 1+1*33 )` will print `1+1*33`, and `! '( 1+1*33 )` will (well, here again assuming the `*`, `+` and `#number` operators have been correctly defined and implemented) evaluate to 34.
 
-> If you wonder what is the use of quoting a block of code instead of simply writing "1+1*33", the quote operator actually checks for the syntax of its argument, including arities, since it is first parsed and only after translated to a string. Also, writing strings would have been a far less interesting example.
+> If you wonder what is the use of quoting a block of code instead of simply writing "1+1*33", the quote operator actually checks for the syntax of its argument, including arities, since it is first parsed and only after translated to a string. Also, directly writing strings would have been a far less interesting example.
 
 ### AST metadata & errors
 
@@ -1103,7 +1101,7 @@ Can't add a number and a string.
 And :
 
 ```
-At (12, 13) : " 'hi"+3' : 
+At (12, 13) : '"hi"+3' : 
 Can't add a number and a string.
 ```
 

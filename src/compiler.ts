@@ -589,9 +589,9 @@ export class MicroCompiler<T> {
         }
     }
 
-    /** Compiles a script using the provided macro.
+    /** Compiles a script (using the provided macro reducer if given).
      * @param src - The script source code
-     * @param scriptMacro - The global macro reducer to use. Defaults to `this.scriptMacro`.
+     * @param scriptMacro - If provided, overrides `this.scriptMacro` for the script evaluation.
      */
     compile(src: string, scriptMacro: MacroReducer<T> = this.scriptMacro): T {
         let asts = this.parseScript(src)
