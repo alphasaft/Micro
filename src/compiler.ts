@@ -1,9 +1,9 @@
 import { AST, ASTMetadata } from "./ast"
 import { Context } from "./context"
-import { Evaluator } from "./evaluator"
 import { MacroDeclaration, MacroReducer } from "./macro"
 import { OpDeclaration, OpReducer } from "./operator"
 import { MapLike } from "./util"
+import { throwWith } from "./ast"
 
 type char = string
 type length = number
@@ -12,7 +12,7 @@ type index = number
 type InternalOpDeclaration = { precedence: number, arity: [number, number] }
 type InternalMacroDeclaration = { arity: [number, number], limbs: string[] }
 
-export function between(a: number, b: number, x: number) {
+function between(a: number, b: number, x: number) {
     return a <= x && x <= b
 }
 
@@ -25,6 +25,14 @@ export class MicroCompiler<T> {
     private operators: MapLike<InternalOpDeclaration>
     private macros: MapLike<InternalMacroDeclaration>
 
+    /** 
+     * Creates a new Micro Compiler. For more precisions, see the README.md file.
+     * @param operators - The declaration for the operators. The order is used as the operators precedences.
+     * If you wish to declare two operators with the same precedence, nest them together in a list.
+     * @param macros - The declarations for the macros.
+     * @param lift - A function that promotes a string to a usable object of type T.
+     * @param scriptMacro - The global macro reducer that will be used to evaluate scripts.
+     */
     constructor(
         operators: (OpDeclaration | OpDeclaration[])[],
         macros: MacroDeclaration[],
@@ -46,7 +54,7 @@ export class MicroCompiler<T> {
     }
 
     private isEOF(src: string, i: index) {
-        return i >= src.length
+        return i >= src.length || src[i] === '\0'
     }
 
     private isSymbolicOperatorChar(src: string, i: index) {
@@ -75,47 +83,49 @@ export class MicroCompiler<T> {
 
 
     private makeOperation(operator: string, operands: AST[], metadata: ASTMetadata): AST {
-        let error = (msg: string) => this.error(metadata.fullSrc, metadata.loc, msg)
-
-        this.checkOperatorExists(operator, metadata.fullSrc, metadata.loc)
-        this.checkOperatorArity(operator, operands.length, metadata.fullSrc, metadata.loc)
-
+        this.checkOperatorExists(metadata, operator)
+        this.checkOperatorArity(metadata, operator, operands.length)
         return { type: "operation", operator, operands, metadata }
     }
 
-    private checkOperatorExists(name: string, src: string, i: index) {
-        if (!(name in this.operators)) this.error(src, i, `Unknown operator '${name}'.`)
-    }
-
-    private checkOperatorArity(name: string, operandCount: number, src: string, i: index) {
-        this.checkOperatorExists(name, src, i)
-        let arity = this.operators[name].arity
-        if (!between(...arity, operandCount)) this.error(src, i, `Operator '${name}' expects between ${arity.join(" and ")} arguments, got ${operandCount}.`)
-    }
-
-    private makeMacro(name: string, body: AST[], args: AST[], limbs: MapLike<AST[]>, metadata: ASTMetadata): AST {
-        this.checkMacroExists(name, metadata.fullSrc, metadata.loc)
-        this.checkMacroArity(name, args.length, metadata.fullSrc, metadata.loc)
-        for (let limb in limbs) this.checkMacroHasLimb(name, limb, metadata.fullSrc, metadata.loc)
-        return { type: "macro", name, body, args, limbs, metadata }
-    }
-    
-    private checkMacroExists(macro: string, src: string, i: index) {
-        if (!(macro in this.macros)) this.error(src, i, `Unknown macro '${name}'.`)            
-    }
-
-    private checkMacroArity(macro: string, argcount: number, src: string, i: index) {
-        this.checkMacroExists(macro, src, i)
-        let arity = this.macros[macro].arity
-        if (!between(...arity, argcount)) {
-            this.error(src, i, `Macro '${name}' expects between ${arity.join(" and ")} arguments, got ${argcount}.`)
+    private checkOperatorExists(metadata: ASTMetadata, name: string) {
+        if (!(name in this.operators)) {
+            throwWith(metadata, "Unknown operator.")
         }
     }
 
-    private checkMacroHasLimb(macro: string, limb: string, src: string, i: index) {
-        this.checkMacroExists(macro, src, i)
+    private checkOperatorArity(metadata: ASTMetadata, name: string, operandCount: number) {
+        this.checkOperatorExists(metadata, name)
+        let arity = this.operators[name].arity
+        if (!between(...arity, operandCount)) {
+            throwWith(metadata, `Operator '${name}' expects between ${arity.join(" and ")} arguments, got ${operandCount}.`)
+        }
+    }
+
+    private makeMacro(name: string, body: AST[], args: AST[], limbs: MapLike<AST[]>, metadata: ASTMetadata): AST {
+        this.checkMacroExists(metadata, name)
+        this.checkMacroArity(metadata, name, args.length)
+        for (let limb in limbs) this.checkMacroHasLimb(metadata, name, limb)
+        for (let limb in this.macros[name].limbs) limbs[limb] = limbs[limb] ?? []
+        return { type: "macro", name, body, args, limbs, metadata }
+    }
+    
+    private checkMacroExists(metadata: ASTMetadata, macro: string) {
+        if (!(macro in this.macros)) throwWith(metadata, `Unknown macro.`)            
+    }
+
+    private checkMacroArity(metadata: ASTMetadata, macro: string, argcount: number) {
+        this.checkMacroExists(metadata, macro)
+        let arity = this.macros[macro].arity
+        if (!between(...arity, argcount)) {
+            throwWith(metadata, `Macro '${name}' expects between ${arity.join(" and ")} arguments, got ${argcount}.`)
+        }
+    }
+
+    private checkMacroHasLimb(metadata: ASTMetadata, macro: string, limb: string) {
+        this.checkMacroExists(metadata, macro)
         let limbs = this.macros[macro].limbs
-        if (!limbs.includes(limb)) this.error(src, i, `Macro '${macro}' doesn't accept a limb called ${limb}.`)
+        if (!limbs.includes(limb)) throwWith(metadata, `Macro '${macro}' doesn't accept a limb called ${limb}.`)
     }
 
 
@@ -128,7 +138,7 @@ export class MicroCompiler<T> {
     }
 
     private makeMetadata(src: string, i: number, j: number): ASTMetadata {
-        return { fullSrc: src, src: src.substring(i, j), loc: i }
+        return { src: src, excerpt: src.substring(i, j), loc: i }
     }
 
     private flush(src: string, i: index): length {
@@ -150,7 +160,7 @@ export class MicroCompiler<T> {
                     default:
                         j++
                 }
-                if (j >= src.length) this.error(src, src.length, "Unclosed comment.")
+                if (j >= src.length) throwWith(this.makeMetadata(src, i, src.length), "Unclosed comment.")
             } while (depth > 0)
         } else {
             while (this.isWhitespace(src, j)) {
@@ -159,18 +169,6 @@ export class MicroCompiler<T> {
         }
 
         return j-i > 0 ? this.flush(src, j) + j-i : j-i
-    }
-
-    private getLC(src: string, i: number): [number, number] {
-        let lineNo = [...src.substring(0, i)].filter(c => c === '\n').length + 1
-        let columnNo = src.substring(0, i).split("\n").at(-1)!.length
-        return [lineNo, columnNo]
-    }
-
-    private error(src: string, i: number, msg: string): never {
-        let [lineNo, columnNo] = this.getLC(src, i)
-        let line = src.split("\n")[lineNo-1]
-        throw `At (${lineNo}, ${columnNo}) : "${line}" : ${msg}`
     }
     
     private parseSymbolicOperator(src: string, i: index): [string, length] {
@@ -189,7 +187,7 @@ export class MicroCompiler<T> {
         i += this.flush(src, i)
 
         let j = i
-        if (!this.isLetter(src, j)) this.error(src, i, "Letters expected.")
+        if (!this.isLetter(src, j)) throwWith(this.makeMetadata(src, i, i+1), "Letters expected.")
         else j++
         while (this.isLetterOrNumber(src, j)) j++
 
@@ -200,24 +198,25 @@ export class MicroCompiler<T> {
         i += this.flush(src, i)
 
         let j = i
-        if (src[j] !== '"') this.error(src, i, "'\"' expected.")
+        if (src[j] !== '"') throwWith(this.makeMetadata(src, i, i+1), "'\"' expected.")
         j += 1 + this.flush(src, j+1)
 
-        let args: AST[] = []
+        let args: AST[] = []        
+        if (src[j] === '{') args.push(this.makeLiteral("", this.makeMetadata(src, j, j)))
         while (true) {
             if (src[j] === '{') {
                 j++
                 let [arg, consumed] = this.parseExpression(src, j)
                 j += consumed + this.flush(src, j+consumed)
-                if (src[j] !== '}') this.error(src, j, "'}' expected.")
+                if (src[j] !== '}') throwWith(this.makeMetadata(src, j, j+1), "'}' expected.")
                 j++
                 args.push(arg)
             } else {
                 let k = j
                 while (!this.isEOF(src, k) && src[k] !== '{' && src[k] !== '"') k++
-                args.push(this.makeLiteral(src.substring(j, k),this.makeMetadata(src, j, k)))
+                args.push(this.makeLiteral(src.substring(j, k), this.makeMetadata(src, j, k)))
                 j = k
-                if (this.isEOF(src, k)) this.error(src, k, "'\"' expected.")
+                if (this.isEOF(src, k)) throwWith(this.makeMetadata(src, k, k+1), "Closing '\"' expected before end of file.")
                 else if (src[k] === '"') { j++ ; break }
             }
         }
@@ -240,13 +239,11 @@ export class MicroCompiler<T> {
     }
 
     private parseExpressionSequence(src: string, i: index, end: char, start?: char): [AST[], length] {
-        let [l,c] = this.getLC(src, i)
-
         i += this.flush(src, i)
         let j = i
 
         if (start) {
-            if (src[j] !== start) this.error(src, i, `'${start}' expected.`)
+            if (src[j] !== start) throwWith(this.makeMetadata(src, i, i+1), `'${start}' expected.`)
             j += 1+this.flush(src, j+1)
         }
 
@@ -267,7 +264,7 @@ export class MicroCompiler<T> {
                 done = true
                 j++
             } 
-            if (!(semicolonSeen || endSeen)) this.error(src, j, `';' expected.`)
+            if (!(semicolonSeen || endSeen)) throwWith(this.makeMetadata(src, j, j+1), `';' expected.`)
             sequence.push(expr)
         }
 
@@ -287,7 +284,7 @@ export class MicroCompiler<T> {
         j += consumed3 + this.flush(src, j+consumed3)
 
         if (src[j] === '{') {
-            this.checkMacroExists(name, src, i)
+            this.checkMacroExists(this.makeMetadata(src, i, i+consumed1), name)
             let [body, consumed4] = this.parseExpressionSequence(src, j, '}', '{')    
             j += consumed4
 
@@ -296,8 +293,8 @@ export class MicroCompiler<T> {
             while (this.isLetter(src, j+flush)) {
                 j += flush
                 let [limbName, consumed5] = this.parseIdentifier(src, j)
-                this.checkMacroHasLimb(name, limbName, src, j)
-                if (limbName in limbs) this.error(src, j, "Can't declare twice the limb '" + limbName + "'.")
+                this.checkMacroHasLimb(this.makeMetadata(src, j, j+consumed5), name, limbName)
+                if (limbName in limbs) throwWith(this.makeMetadata(src, j, j+consumed5), "Can't declare twice the limb '" + limbName + "'.")
                 j += consumed5 + this.flush(src, j+consumed5)
                 let [limb, consumed6] = this.parseExpressionSequence(src, j, '}', '{')
                 limbs[limbName] = limb
@@ -323,7 +320,10 @@ export class MicroCompiler<T> {
             ]
         } 
 
-        if (boundTo !== null) this.error(src, i+name.length, "Operator expected.")
+        if (boundTo !== null) {
+            let boundNameStart = i + consumed1 + this.flush(src, i+consumed1)
+            throwWith(this.makeMetadata(src, boundNameStart, boundNameStart+consumed2), "Operator expected.")
+        }
         
         let metadata = this.makeMetadata(src, i, j)
         let nameAST = this.makeLiteralOperation("#name", name, metadata)
@@ -351,7 +351,7 @@ export class MicroCompiler<T> {
         let j = i+1 + this.flush(src, i+1)
         let [ast, consumed] = this.parseExpression(src, j)
         j += consumed + this.flush(src, j+consumed)
-        if (src[j] !== ')') this.error(src, j, "')' expected.")
+        if (src[j] !== ')') throwWith(this.makeMetadata(src, j, j+1), "')' expected.")
         j++
         return [ast, j-i]
     }
@@ -369,7 +369,7 @@ export class MicroCompiler<T> {
     private parsePrefixBracketedExpression(src: string, i: index): [AST, length] {
         i += this.flush(src, i)
         let j = i
-        if (src[j] !== '[') this.error(src, j, "'[' expected.")
+        if (src[j] !== '[') throwWith(this.makeMetadata(src, j, j+1), "'[' expected.")
         j += 1+this.flush(src, i+1)
         let [operator, consumed] = this.parseOperator(src, j)
         j += consumed + this.flush(src, j+consumed)
@@ -381,7 +381,7 @@ export class MicroCompiler<T> {
 
     private parseInfixBracketedExpression(src: string, i: index): [AST, length] {
         i += this.flush(src, i)
-        if (src[i] !== '[') this.error(src, i, "'[' expected.")
+        if (src[i] !== '[') throwWith(this.makeMetadata(src, i, i+1), "'[' expected.")
         let j = i+1+this.flush(src, i+1)
 
         let [operatorands, consumed] = this.preparseOperands(src, j)
@@ -391,16 +391,19 @@ export class MicroCompiler<T> {
             j += consumed + this.flush(src, j+consumed)
             operatorands.push(trailingOperator)
         }
-        if (src[j] !== ']') this.error(src, j, "']' expected.")
+        if (src[j] !== ']') throwWith(this.makeMetadata(src, j, j+1), "']' expected.")
         j++
 
-        if (operatorands.length < 2) this.error(src, i, "Infix bracket expressions expect at least an operand and an operator.")
+        if (operatorands.length < 2) throwWith(this.makeMetadata(src, i, j), "Infix bracket expressions expect at least an operand and an operator.")
 
         let operator = operatorands[1] as string
         for (let k = 1; k<operatorands.length; k+=2) {
             if (operatorands[k] as string !== operator) {
-                this.error(src, i, "Syntax error : Only a single type of operator is allowed inside a bracket expression."
-                    + "Enclose subexpressions in parentheses if needed.")
+                throwWith(
+                    this.makeMetadata(src, i, j), 
+                    "Syntax error : Only a single type of operator is allowed inside a bracket expression." +
+                    "Enclose subexpressions in parentheses if needed."
+                )
             }
         }
 
@@ -437,8 +440,6 @@ export class MicroCompiler<T> {
             let lowestPrecedence: number = self.operators[operatorands[1] as string].precedence
             for (let k = 1; k<operatorands.length; k+=2) {
                 let op = operatorands[k] as string
-                if (!(op in self.operators)) self.error(src, (operatorands[k-1] as AST).metadata.loc, `Unknown operator '${op}'.`)
-
                 let precedence = self.operators[op].precedence
                 if (lowestPrecedence >= precedence) {
                     lowestPrecedence = precedence
@@ -455,7 +456,7 @@ export class MicroCompiler<T> {
                 self.makeMetadata(
                     src, 
                     (operatorands[0] as AST).metadata.loc, 
-                    (m => m.loc + m.src.length)((operatorands.at(-1) as AST).metadata)
+                    (m => m.loc + m.excerpt.length)((operatorands.at(-1) as AST).metadata)
                 )
             )
         }
@@ -495,7 +496,7 @@ export class MicroCompiler<T> {
             ? this.parseSymbolicOperator(src, i)
             : this.parseHashOperator(src, i)
         
-        if (!(op in this.operators)) this.error(src, i, `Unknown operator '${op}'.`)
+        if (!(op in this.operators)) throwWith(this.makeMetadata(src, i, i+consumed), `Unknown operator.`)
 
         return [op, consumed]
     }
@@ -509,7 +510,7 @@ export class MicroCompiler<T> {
         let j = i
 
         let [operand, consumed] =
-              this.isEOF(src, j)                  ? this.error(src, j, "Unexpected end of file while parsing operand.") 
+              this.isEOF(src, j)                  ? throwWith(this.makeMetadata(src, j, j+1), "Unexpected end of file while parsing operand.") 
             : this.isLetter(src, j)               ? this.parseMacroOrName(src, j)
             : this.isOperatorFirstChar(src, j)    ? this.parseUnaryOperation(src, j)
             : this.isNumber(src, j)               ? this.parseNumber(src, j)
@@ -517,7 +518,7 @@ export class MicroCompiler<T> {
             : src[j] === '['                      ? this.parseBracketedExpression(src, j)
             : src[j] === '"'                      ? this.parseString(src, j)
             : src[j] === '{'                      ? this.parseSilentMacro(src, j)
-            : this.error(src, j, "Unexpected character : '" + src[j] + "'.")
+            : throwWith(this.makeMetadata(src, j, j+1), "Unexpected character : '" + src[j] + "'.")
 
         j += consumed
         let flush = this.flush(src, j)
@@ -556,21 +557,21 @@ export class MicroCompiler<T> {
 
             case "macro":
                 let { name: name1, args, body, limbs, metadata: metadata1 } = ast
-                let macro = macros[name1] ?? this.error(metadata1.fullSrc, metadata1.loc, `Macro '${name1}' was declared, but not implemented.`)
+                let macro = macros[name1] ?? throwWith(metadata1, `Macro '${name1}' was declared, but not implemented.`)
                 try {
                     return macro(this.makeContext(operators, macros), body, args, limbs)
                 } catch (e) {
-                    this.error(metadata1.fullSrc, metadata1.loc, "\n" + e as string)
+                    throwWith(metadata1, e as string)
                 }
 
             case "operation":
                 let { operator: name2, operands, metadata: metadata2 } = ast
                 let evaluatedOperands = operands.map(x => this.eval(x, operators, macros))
-                let operator = operators[name2] ?? this.error(metadata2.fullSrc, metadata2.loc, `Operator '${name2}' was declared, but not implemented.`)
+                let operator = operators[name2] ?? throwWith(metadata2, `Operator '${name2}' was declared, but not implemented.`)
                 try {
                     return operator(evaluatedOperands)
                 } catch (e) {
-                    this.error(metadata2.fullSrc, metadata2.loc, e as string)
+                    throwWith(metadata2, e as string)
                 }
         }
     }
@@ -588,9 +589,13 @@ export class MicroCompiler<T> {
         }
     }
 
-    compile(src: string): T {
+    /** Compiles a script using the provided macro.
+     * @param src - The script source code
+     * @param scriptMacro - The global macro reducer to use. Defaults to `this.scriptMacro`.
+     */
+    compile(src: string, scriptMacro: MacroReducer<T> = this.scriptMacro): T {
         let asts = this.parseScript(src)
-        return this.scriptMacro(this.makeContext({}, {}), asts, [], {}) 
+        return scriptMacro(this.makeContext({}, {}), asts, [], {}) 
     }
 }
 

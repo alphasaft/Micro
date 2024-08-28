@@ -121,7 +121,7 @@ If several operators with the same precedence are encoutered in a single express
 
 Now for the the list of all keywords of the language : 
 
-No keywords, actually ! Instead, we got hash operators. These are operators that start with `#` (hence the name), followed by one or more letters : `#hello` or `#world` for instance.  These are used just like normal, symbol-based operators, and allow for nicer syntax when needed : `elem >?> myList` is pretty obfuscated, while `elem #in myList` is crystal clear !
+No keywords, actually ! Instead, we got hash operators. These are operators that start with `#` (hence the name), followed by one or more letters : `#foo` or `#bar` for instance.  These are used just like normal, symbol-based operators, and allow for nicer syntax when needed : `elem >?> myList` is pretty obfuscated, while `elem #in myList` is crystal clear !
 
 > If you wonder, here are the symbols that can be used in symbolic operators : `&|~^@=+'-$*%!/:.,?!<>`. Any combination of such symbols is a valid operator.
 
@@ -235,7 +235,7 @@ In standard languages, it's, more often than not, **not** visible by the user, a
 
 And that's where macros kick in ! Conceptually, macros are functions that are meant to evaluate parsed code, and return a standard JS value of type `T`. A macro is made up of two things : a `MacroDeclaration`, which tell what the macro looks like, and something called a `MacroReducer<T>`, which tells what the macro does.
 
-A `MacroReducer<T>` is a function that takes in four arguments :
+A `MacroReducer<T>` is a function that takes in four arguments to output an object of type `T` :
 * An context, of type `Context<T>`,
 * The body of the macro as a list of `AST`s. Each AST of the list is one expression inside your script. So if your macro contained `1+1; 2+2; 3+3;`, it will have length of 3. 
 * The arguments to the macro as a list of `AST`s too ; same here, each argument is an `AST` on its own.
@@ -432,7 +432,7 @@ Generally speaking, it's a good practice to :
 * Pass in every operator at script level, even it's a dummy implementation that always throw
 * Delegate operator implementation to the ambient operator if you don't know what to do with its values. That way, nested macros don't interfere with one another. Eventually, if no one knows what to do, it will be passed to the script macro's operator implementation, and, if needed, will crash.
 
-Same applies for macros : pass in every declared macro at script level, then delegate instead of throwing.
+Same applies for macros : pass in every declared macro reducer at script level, then delegate instead of throwing.
 
 ### Micro knows nothing about numbers
 
@@ -460,7 +460,7 @@ This is where the [lift function](#a-small-compiler-to-start-with) comes into pl
 
 Suppose we now want to actually implement numbers.
 * We have to replace the dummy `_ => {}` lift function in our compiler by a true lift function. Since lift takes a string  representing a literal as an argument, and that evaluating a literal can, without too much imagination, return that same string, we'll just return the literal itself : `literal => literal`. So passing in \`1\` (as "1") will return "1".
-* We have to implement the `#number` operator, which you will then have to pass to `ev` along with `+`. We will juste parse that "1" to 1.0 with the JS `parseFloat`.
+* We have to implement the `#number` operator, which you will then have to pass to `ev` along with `+`. We will juste parse that "1" to 1.0 with the JS `parseFloat` function.
 
 ```js
 // Don't forget to declare '#number' with arity 1 to the 
@@ -474,7 +474,7 @@ let numberOp = ([s]) => parseFloat(s)
 
 And this will work just like you expected it to !
 
-> While this may seem like overcomplicating things, this is a deliberate choice made to strictly enforce syntax and semantics separation. Besides, it actually offers tangible benefits, which we'll study later.
+> While this may seem like overcomplicating things, this is a deliberate choice made to strictly enforce syntax and semantics separation. Besides, it actually offers tangible benefits, which we'll see later.
 
 ### Micro knows nothing about strings and names either
 
@@ -618,7 +618,7 @@ let timesOp = ([a,b]) => a*b
 let divideOp = ([a,b]) => a/b
 let numberOp = ([s]) => parseFloat(s)
 
-let nameOp = () => error("Can't use #name here !")
+let nameOp = ([literal]) => error(`Syntax error : ${literal}.`)
 
 let chainMacro = ({ ev, operators }, body, [value]) => {
     let nameOp = ([name]) => {
@@ -688,7 +688,7 @@ Did you notice how `Operator` takes in an `arity` argument too ? Until there, we
 
 We can use operators in a unary way by prefixing an expression with said operator. Operator precedences still apply, but only at the right of the operator, as unary operators automatically bind tighter than everything on their left side.
 
-So `1 * +1` is parsed as `1*(+1)` since unary operators bind tighter that everything there is on their left, but `+1 * 1` is parsed as `+(1*1)` since precedence on the right side works normally and `*` binds tighter than `+`. Last but not least, things like `#op1 #op2 expr` will always evaluate as `#op1 (#op2 expr)`, independently of precedences. This may seem weird, but it's actually pretty common behavior that is seen in many other languages.
+So `1 * +1` is parsed as `1*(+1)` since unary operators bind tighter that everything there is on their left, but `+1 * 1` is parsed as `+(1*1)` since precedence on the right side works normally and `*` binds tighter than `+`. This may seem weird, but it's actually pretty common behavior that is seen in many other languages.
 
 > If this confuses you, don't think too much about it ; it is intended to conform to your intuition.
 
@@ -703,7 +703,7 @@ This, combined with hash operators, allows for rather cool syntax reminiscent of
 You can't pass more than two operands simultaneously to an operator with the syntax bits we've seen until there. 
 I therefore introduce to you the _pack_ syntax.  
 
-The pack syntax is rather simple and comes from the fact it allows to "pack" operands for a single operator. You just need to wrap an expression containing only one type of operators inside brackets. For example :
+The pack syntax is rather simple, and its name comes from the fact it allows to "pack" operands for a single operator. You just need to wrap an expression containing only one type of operator inside brackets. For example :
 
 ```
 [[ This will apply + to operands 1, 2, 3 simultaneously ]]
@@ -778,7 +778,7 @@ To call an operator with 0 arguments, you thus need to enclose it in square brac
 ### Special operators : `#call` and `#index`
 
 Ever wondered why the `{}` following a macro are not optional ?   
-That's actually because they are needed to disambiguate macro syntax from a special operator called... well, `#call`. When an expression of the form `callee(arg1; ...; argn;)` (lAsT sEmIcOLoN OpTiONal) is encountered, `called` as well as `arg1`, ..., `argn` are parsed, then passed together to the special `#call` operator in that order.
+That's actually because they are needed to disambiguate macro syntax from a special operator called... well, `#call`. When an expression of the form `callee(arg1; ...; argn;)` (last semicolon optional) is encountered, `callee` as well as `arg1`, ..., `argn` are parsed, then passed together to the special `#call` operator in that order.
 
 > `callee` can be any expression, and, in particular, it can be a name. `myMacro()` would therefore be parsed as applying `#call` to name `myMacro`, which likely isn't what you want here. Adding `{}` at the end forces the compiler to parse that as a macro, since `(myMacro()) {}` doesn't make sense.
 
@@ -797,6 +797,41 @@ Same goes for `x[arg1; ...; argn;]` (last semicolon optional) with the `#index` 
 > Don't forget that `#call` and `#index` arity is one more than what you would expect, because the thing that's called/indexed is itself an argument to it. Declaring `#index` with an arity of 1 would actually only allow expressions of the form `x[]` !
 
 Such expressions can be nested : `x[0][1]` is `(x #index 0) #index 1`, `f()()` is `[#call [#call f]]`, and `x[0]()` is `#call (x #index 0)`. If you wish to call/index complex expressions, wrapping them inside parentheses works just fine : `(my #complex expression)[index]`
+
+### String format using `#string`
+
+There is slightly more going on with strings that I told you. In Micro, we have _string formatting_, which takes this form : if a `{` is encountered inside a string, the compiler will try to parse the expression contained between it and the closing `}`. Then, it passes that AST to the `#string` operator, and goes on.
+
+For example, parsing `"1+2 is {1+2} !"`  will result in the following call to `#string` :
+
+```
+[#string 
+    `1+2 is `; 
+    { AST for 1+2 };
+    ` !`;
+]
+```
+
+Due to how string formatting is implemented, arguments to string will always alternate between a literal and a string format argument, starting and ending with a literal, so `"{name} said to me {msg}"` would yield :
+
+```
+[#string
+    ``;
+    { AST for name };
+    ` said to me `;
+    { AST for msg };
+    ``;
+]
+```
+
+With the empty literals added to conform to that rule. 
+Also, formatted strings can (although this is quite uncommon) be nested :
+
+```
+"Hi, did I told you that { "{name} said to me {msg}" } ?";
+```
+
+If you want to forbid string formatting in your scripts, all you have to do is to declare `#string` with an arity of 1 : any formatted string will result in at least 3 arguments to `#string` because of the alternance between literals and expressions.
 
 ## Let's practice II
 
@@ -1356,7 +1391,6 @@ if (condition) {
 While it's all nice and stuff, it lacks something : an else branch. Sure, we could do something like this :
 
 ```
-
 if (expr) {
     [[ code here ]]
 }
@@ -1368,7 +1402,7 @@ if (#not expr) {
 
 But that's really awkward : what if `expr` is super long and we don't want to write it out twice ? And it requires to implement `#not` beforehand.
 
-Fortunately, there is support for something called limbs. Take that beautiful comparison between macros and the human body, which has no goal but to convince you the appelation `limbs` makes sense :
+Fortunately, there is support for something called limbs. Take that beautiful comparison between macros and the human body, which serves no purpose but to convince you the appelation `limbs` makes sense :
 
 ```
 if (expr) [[ <-- That's the head ]] {
@@ -1411,7 +1445,7 @@ let ifMacro =
 
 > It is common to refer to macros with limbs by joining together their name and limbs, separed by slashes : `if/else`, for example, would refer to the above macro. It doesn't reflect in the declarations and code however, as the macro is still known as just `if` to the compiler.
 
-Our `if` now evaluates its condition, and executes the according block.
+Our `if` now evaluates its condition, and executes the according block of code : the main one if it's true, the else one if it's false.
 
 A single macro can declare as many limbs as it wants. 
 If `limbs: ...` is not explicitely set inside the macro declaration, it defaults to `[]`. Limbs are pretty flexible and can be used without much restrictions. For example, with a declaration for a macro `try/catch/finally` of `{ name: "try", arity: 0, limbs: ["catch", "finally"]}`, these are all correct :
@@ -1432,13 +1466,10 @@ try {};
 [[ These by the way demonstrate that limbs can be used to mimic really well control flow structures syntax. ]]
 ```
 
-If a limb is missing, its corresponding field in the `limbs` argument to the macro reducer is defaulted to `undefined`, so these two are **not** the same :
+If a limb is missing, its corresponding field in the `limbs` argument to the macro reducer is defaulted to `[]`, so these two are **exactly** the same :
 
 ```
-[[ limbs["else"] is undefined ]]
-if { [[ Blah blah ]] };  
-
-[[ limbs["else"] is [] ]]
+if { [[ Blah blah ]] }; 
 if { [[ Blah blah ]] } else {}; 
 ```
 
@@ -1473,7 +1504,7 @@ with (someObject) {
 
 ### Silence !
 
-You may have wondered what curly brackets do when used alone : 
+You may have already wondered what curly brackets do when used alone : 
 
 ```
 [[ What is that ? ]]
@@ -1486,10 +1517,10 @@ So a pair of curly bracket, eventually with statements inside, just calls the si
 There is no way to pass in arguments or limbs to the silent macro, and its declaration must therefore always read so : 
 
 ```js
-{ name: "", arity: 0 } // limbs: [] is optional
+{ name: "", arity: 0 } // "limbs: []" is optional
 ```
 
-You could, for example, use it to implement JS-like object notation : 
+You could, for example, use it to implement JSON-like syntax : 
 
 ```
 {
@@ -1497,11 +1528,271 @@ You could, for example, use it to implement JS-like object notation :
     b: "bar";
     c: {
         hello: "World !";
-        list: [1, 2, 3]
+        list: [1, 2, 3,]
     }
 }
 ```
 
 By the way, could you tell the "list literal" is actually the coma operator used in an infix pack ?
 
-> That's what the [`if x(y) {{ ... }}`](#guess-what--were-not-done-with-macros) was : a silent macro nested inside an `if` macro. The silent macro is an expression by itself, and it's better to explicitely space it out from other constructs. 
+> That's what the [`if x(y) {{ ... }}`](#guess-what--were-not-done-with-macros) was : a silent macro nested inside an `if` macro. The silent macro is an expression by itself, and it's better to explicitely space it out from other constructs : 
+```
+if x(y) { [[ <- that weird head is still bad practice ! ]]
+    {
+        [[ ... ]]     
+    }
+}
+```
+
+## Let's practice III
+
+## Back to the forest
+
+I said before that we didn't need to know how `AST`s were implemented, because all we had to do was to pass them to `ev` whenever we wanted to evaluate them.
+
+That's true for most of the cases, but if we want to write complex macros that perform very niche tasks, we might want to directly take a peak at `AST`s instead. 
+
+### AST dissection
+
+An `AST` is actually a plain JS object that always has two fields : `type` and `metadata`. Forget `metadata` for now, and let's focus on `type`. It can take three values, which serve to indicate what the `AST` represents : `"literal"`, `"operation"` and `"macro"`. Depending on that `type`, the `AST` will possess additionnal fields.
+
+* A `literal` describes a literal generated by the compiler. It possesses a `value` field, filled with a string to represent that literal. So `1` would be `{ metadata: ..., type: "literal", value: "1" }`, for example.
+
+* An `operation` describes... well, an operation. It has two additionnal fields : `operator` (`string`) and `operands` (`AST[]`). So `1+1` would be : `{ metadata: ..., type: "operation", operator: "+", operands: [{ AST for 1 }, { AST for 1 }] }` (notice how `{ AST for 1 }` would in fact again be an `"operation"` with operator `#number`).
+
+* A `macro` describes a macro call. Its has 4 additionnal fields : `macro`, `body`, `args` and `limbs`, which all contain what you would expect (respectively the macro name as a string, the body as a list of ASTs, the arguments as a list of AST, and the limbs as an object whose fields are filled with a list of AST[] for each limb)
+
+And there's nothing more to know ! When `ev` is called on an `AST`, it checks the type, and performs the appropriate action : lifting a literal, applying the operator or calling the macro reducer.
+
+> "Wait, if it's that simple, can I create ASTs myself ?"
+
+Yup ! You could even evaluate `AST`s yourself, for that matter !
+
+### Intrinsic
+
+We'll use a lot the `intrinsic(msg?)` function from the `./ast.js` module. 
+From the documentation : 
+
+> Indicates that this macro/operator is implemented using AST manipulation rather than reducers.   
+Returns a reducer that throws with `msg` if actually called.  
+@errorMsg - The error message in the case it's called, defaults to "Internal error."
+
+It is meant to be used like this :
+
+```js
+let someMacro = intrinsic()
+let someOperator = intrinsic("The #some operator should not be used here.")
+```
+
+It means that every correct occurence of this macro/operator inside the script AST will be replaced before being evaluated, or will never be evaluated at all, and therefore doesn't need to be actually implemented. A call to the reducer returned by instrinsic always results in an error.
+
+### Expect
+
+To demonstrate why direct AST manipulation can be useful, let's write a `switch` macro : 
+
+```
+switch (x) {
+    case (1) {
+        [[ Do something here if x == 1 ]]
+    }
+    case (2) {
+        [[ Do another thing if x == 2 ]]
+    }
+    default {
+        [[ If x is neither 1 nor 2, do that ]]
+    }
+}
+```
+
+As you can see, we didn't use limbs because one single `case` could be written, which would be pretty useless. `switch` instead will use two macros, `case` and `default`, as well as AST manipulation.
+
+We will need the `expect(type, ast, check?)` function (also from the `"./ast.js"` module). From the documentation : 
+
+> Checks that `ast` is of the correct type and that its passes `check`, then returns it.  
+ @param type - The expected type of AST  
+ @param ast - The AST to check  
+ @param check - An additional check defaulting to `ast => true`  
+
+```js
+// Macro declarations
+{ name: "switch", arity: 1 }
+{ name: "case", arity: 1 }
+{ name: "default", arity: 0 }
+
+// Operator declaration : switch implicitely use ==
+{ name: "==", arity: [2, Infinity] }
+
+let equalsOp = /* Implement it as you like */
+
+let caseMacro = intrinsic("'case' can only be used as a top level statement inside a switch block.")
+let defaultMacro = intrinsic("'default' can only be used as a top level statement inside a switch block.")
+
+let switchMacro = ({ ev, operators }, body, [value]) => {
+    let ambientEqualsOp = operators["=="]
+
+    let found = false
+    for (let expr of body) {
+        // The body *must* be `case` and `default` macros only. If it isn't, that's an error.
+        // We use the expect function to explicitely check that.
+        let { macro, body, args } = expect(
+            "macro", 
+            expr, 
+            ({ macro }) => macro === "case" || macro === "default"
+        )
+
+        switch (macro) {
+            case "case":
+                let [comparable] = args
+                let same = ambientEqualsOperator([ev(comparable), ev(value)])
+                if (same) {
+                    for (let expr of body) ev(expr)
+                    found = true
+                }
+            
+            case "default":
+                for (let expr of body) {
+                    ev(expr)
+                }
+                found = true
+        }
+
+        if (found) break
+    }
+}
+```
+
+And we've got a functional `switch` macro ! Which also proves that AST manipulation is actually pretty simple.
+
+### Replace
+
+Let's do something else. In some languages, there is the possibility to quote some code blocks, producing an usable object representing that code to be passed around. We are gonna do pretty much that, by implementing two things :
+
+* An unary `'` operator, called "quote", that will produce such quoted code blocks.
+* An unary `!` operator, called "eval", which will compile any string passed to it and return the result.
+
+The problem here is : operators have access to their elements already evaluated, but `'` clearly need to access the `AST`s to do its job. How can we solve that ? By using `AST` manipulation ! We will need the `replace(type, f, ast, depth?)` function (always from that `./ast.js` module). Here's the doc : 
+
+
+> Replaces every sub-AST of matching `type` inside `ast` until `depth` with the result of applying `f` to it. 
+Replacement is done in a bottom-to-top fashion, so ASTs passed to `f` can have some of their members already replaced.  
+@param type - The type of AST that should be replaced  
+@param f - The function to apply  
+@param ast - The ast on which replacements should be performed.  
+@param depth - The maximum depth until which replacement should be performed in termes of nested macros, defaulting to Infinity
+
+
+```js
+// Declarations. Quote should be low precedence to allow quoting entire expressions.
+{ name: "'", arity: 1 }
+{ name: "!", arity: 1 }
+
+// Quotes won't actually ever be evaluated.
+let quoteOp = intrinsic()
+
+// The eval operator can actually be normally implemented
+// `compiler` being, of course, our compiler
+let evalOp = ([code]) => compiler.compile(code)
+
+// We're gonna manipulate our ASTs inside the whole script, so we implement it in the script macro.
+let scriptMacro = ({ ev }, body) => {
+    let ops = { "'": quoteOp, "!": evalOp }
+    let macros = {}
+
+    // We will replace every occurence of the quote operator with a string representing 
+    // the source code of its operand, which we can find in its `metadata.excerpt` field.
+    body = body.map(ast => replace(
+        "operator", 
+        ast => {
+            if (ast.operator !== "'") return ast
+            else return {
+                type: "operation",
+                operator: "#string",
+                operands: [{
+                    type: "literal",
+                    // ast.operands[0] is the sole argument to the quote operator.
+                    value: ast.operands[0].metadata.excerpt
+                }]
+            }
+        },
+        ast
+    ))
+
+    for (expr of body) {
+        ev(expr, ops, macros)
+    }
+}
+```
+
+We can then use our quote operator so (assuming `#print` is an unary operator that prints its argument to the console): `#print '( 1+1*33 )` will print `1+1*33`, and `! '( 1+1*33 )` will (well, here again assuming the `*`, `+` and `#number` operators have been correctly defined and implemented) evaluate to 34.
+
+> If you wonder what is the use of quoting a block of code instead of simply writing "1+1*33", the quote operator actually checks for the syntax of its argument, including arities, since it is first parsed and only after translated to a string. Also, writing strings would have been a far less interesting example.
+
+### AST metadata & errors
+
+We briefly mentionned `AST.metadata.excerpt`, but there's a little bit more to know about `AST.metadata` than just that. It's an object of type `ASTMetadata` (who'd have guessed that ?) that comes with every `AST` and possesses three fields :
+
+* `excerpt` : We've already seen that one. It's the excerpt of the source code that, once parsed, resulted in that AST. `excerpt` retains the whitespaces, linebreaks and comments that were present inside the original code.
+
+* `src` : The whole script source that was passed in to `MicroCompiler.compile`.
+
+* `loc`: An integer representing the index of the character at which `excerpt` occurs in `src`. You can get the index of the character at which ends `excerpt` with `loc + excerpt.length` (obvious, but worth saying).
+
+Aside from being useful for implementing operators like the quote one above, metadata is great to generate meaningful errors messages. 
+
+Compare :
+```
+Can't add a number and a string.
+```
+
+And :
+
+```
+At (12, 13) : " 'hi"+3' : 
+Can't add a number and a string.
+```
+
+The second is much more informative, and makes debugging far easier. It's that kind of error messages that Micro generates, and it's made possible by the fact `AST`s carry their metadata with them.  
+Any error you throw when evaluating your script automatically gains a stack trace, with one level of depth per line. For example, if the nullary operator `#error` always throw `"An error occured"`, that code :
+
+```
+if (true) {
+    do {
+        3+[#error];
+    }
+}
+```
+
+Would result in `MicroCompiler.compile` crashing with the following error message (might slighlty vary over versions):
+
+```
+At (1, 1) : "if (true) {" :
+At (2, 5) : "do {" :
+At (3, 9) : "3+[#error]" :
+At (3, 11) : "[#error]" : 
+An error occured.
+```
+
+You can yourself throw errors with `throwWith(metadata, msg)` from `./ast.js`. The docs, as always :
+
+> Throws `msg` with a header summarizing `metadata`  
+@param metadata - Info on where the error happened  
+@param msg - The error message
+
+While the metadata you pass to it can, technically speaking, be created, it's really, really not recommanded, and it's a lot better to use the metadata of the AST the error, semantically speaking, occured in. Note that this is only useful to throw errors about `AST`s you are manipulating and not evaluating. For those you evaluate, you can just throw some classic string inside the reducer, and it will automatically gain  headers when the error bubbles up.
+
+### With great power comes great responsability
+
+Just like macros extended syntax, AST manipulation allows for cool, but also very wild things. So, once again, _can doesn't mean should_, and you must always think about a reducer-based solution before going all in with `replace`. Also, `replace` traverses the whole `AST`, and using it extensively can result in performance issues. 
+
+
+## Conclusion
+
+Congratulations, you've made it to the end ! I hope Micro convinced you, and that this tutorial was clear enough.  
+There is plenty of things you can do with it, from describing complex data structures to using it as a small imperative language ; and probably a lot of other things I didn't yet think about. 
+
+At the time I'm writing this, I nearly began experimenting with that language. There's cool things that came out without me noticing in the first place (nullary operators, for example, had their own syntax, before I found out that prefix packs worked really well with them, and I had to find for myself that I actually had list literals backed into the language with `,` + the infix pack syntax). I hope there will be others.  
+
+I use this tool in my projects, so it will be maintained and updated whenever I feel it is necessary. The whole ambient operators/macros thing didn't exist before I wrote some code myself and told me 'uh, that's painful to keep track of which operators do what', scoping used to work in a far less efficient way in earlier versions, and macro binding was implemented because I was sick of having to write ugly things like `"f = function() { ... }"` all the time. I do my best so that this language stays easy and pleasant to use, and I hope that it will suffice. If you have any suggestions about the syntax or the way Micro works, you can mail me at `alphasaft.github@gmail.com`. 
+
+I wish you a great day,  
+Alphasaft

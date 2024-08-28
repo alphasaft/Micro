@@ -166,6 +166,7 @@ let compiler = new MicroCompiler(
     scriptMacro,
 )
 
+
 compiler.compile(`    
     #print 1*2+3; [[ This fortunately still works ]]
     2+0;
