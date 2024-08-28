@@ -197,12 +197,7 @@ hello #is mySecondMacro(...) { ... };
 
 You may have noticed that until now I only talked about what you could _write_, not about what it actually _does_.  The first thing is usually called the syntax of a program, the second its semantics.
 
-This is actually what makes Micro stands apart from other languages. It's only a syntax. No semantics. If you compile a script, it actually does... nothing !
-
-```js
-compiler.compile("1+1*1;")
-// Prints nothing, returns void.
-```
+This is actually what makes Micro stands apart from other languages. It's only a syntax. No semantics. The compiler has absolutely no idea what to do with your scripts.
 
 > "But... wait ! I do want my code to do something, somehow !".   
 
@@ -211,7 +206,7 @@ Me too ! That's where it gets interesting. Remember the two other arguments we p
 ### Go touch some grass
 
 First, let's talk about trees. 
-In a typical programming language, before doing anything with a script, said script is usually translated in a much more practical form, called an _Abstract Syntactic Tree_ (or AST), and Micro is no exception to that.
+In a typical programming language, before doing anything with a script, said script is usually translated in a much more practical form, called an _Abstract Syntactic Tree_ (or _AST_), and Micro is no exception to that.
 
 Behind this daunting name hides a rather simple thing. Here's what it means. When you write `1+(2*3);`, for example, it's translated to something that roughly looks like `{ op: '+', args: [1, { op: '*', args: [2, 3] }] }`. It appears uglier, but it's now standard javascript and, as such, it's much easier for a program to manipulate it.
 
@@ -233,7 +228,7 @@ In standard languages, it's, more often than not, **not** visible by the user, a
 
 ### Macros, again
 
-And that's where macros kick in ! Conceptually, macros are functions that are meant to evaluate parsed code, and return a standard JS value of type `T`. A macro is made up of two things : a `MacroDeclaration`, which tell what the macro looks like, and something called a `MacroReducer<T>`, which tells what the macro does.
+And that's where macros kick in ! Conceptually, macros are functions that are meant to evaluate parsed code, and return a standard JS value of type `T`. A macro is made up of two things : a `MacroDeclaration`, that you passed to the compiler and tell what the macro looks like, and something called a `MacroReducer<T>`, which tells what the macro does.
 
 A `MacroReducer<T>` is a function that takes in four arguments to output an object of type `T` :
 * An context, of type `Context<T>`,
@@ -262,6 +257,17 @@ let scriptMacro = ({ ev }, body, args, limbs) => {
 
     // There's no return value, meaning this macro will return undefined
 }
+```
+
+Then pass it as the fourth argument to the compiler constructor :
+
+```js
+let compiler = new MicroCompiler(
+    [/* Op declarations */],
+    [/* Macro declarations */],
+    _ => {} /* Don't worry about that */,
+    scriptMacro
+)
 ```
 
 And that's done ! Well, almost. Remember how I said that the Micro compiler has absolutely no idea about semantics ? That still holds. So how would it know that `+` adds two numbers and `*` multiplies them ?
@@ -483,196 +489,6 @@ I think you got it : when Micro comes across a string, it calls the special oper
 Same goes with names, such as `foo` : the `#name` operator is called with \`foo\` as its only operand.
 
 You can declare and implement the `#string` and `#name` operators depending on your needs ; without them, strings and names respectively are not usable inside your script.
-
-
-## Let's practice I
-
-With everything we've learnt until now, we can already implement a calculator.
-The requirements for it are the following : 
-* Numbers are, of course, functionnal
-* It will have operators '+', '-', '*', '/', working like you'd expect them to.
-* Every statement will print out its result
-* There will be an `arity: 1` macro called `chain`.
-
-The `chain` macro should do the following : using its argument as the initial `value`, it evaluates the first expression of its body, then binds the result to `value`. It then evaluates the second expression, binds it to `value`, and so on. At the end, it returns `value`. As an example :
-
-```
-3 + chain (7) {
-    1+value;         [[ Returns 8, value being 7 ]]
-    5*value + 3;     [[ Returns 43, value being 8 ]]
-    value-4        [[ Returns 39, value being 43 ]]
-};
-[[ Final result is thus 42. ]]
-```
-
-We will use an `error(msg: string)` function, defined by `let error = msg => { throw msg }`
-
-Let's begin by declaring all these things :
-
-> JS
-```js 
-
-let compiler = new MicroCompiler(
-    [
-        [{ name: "#number", arity: 1 }],
-        [{ name: "#name", arity: 1 }], // We'll need it for chain
-        [{ name: "*", arity: 2 }, { name: "/", arity: 2 }],
-        [{ name: "+", arity: 2 }, { name: "-", arity: 2 }],
-    ],
-    [
-        { name: "chain", arity: 1 },
-    ],
-    literal => literal,
-    scriptMacro, // See below
-)
-```
-
-Then, let's implement our operators :
-
-```js
-let plusOp = ([a,b]) => a+b
-let minusOp = ([a,b]) => a-b
-let timesOp = ([a,b]) => a*b
-let divideOp = ([a,b]) => a/b
-let numberOp = ([s]) => parseFloat(s)
-
-// Inside the script, but ouside a `chain` block, names have no meaning, so we throw.
-let nameOp = ([name]) => error(`Syntax error : ${name}.`)
-```
-
-Let's write the chain macro. It may seem like a complicated one, but it actually isn't at all !
-
-```js
-let chainMacro = ({ ev, operators }, body, [value]) => {
-    // This is intended to override the global #name 
-    // implementation. The #name operator
-    // will be called everytime a name is encountered,
-    // but the only name that should do something is "value".
-    // When passed in any other name, we delegate.
-    let nameOp = ([name]) => {
-        if (name === "value") return value
-        else return operators["#name"]([name])
-    }
-
-    let ops = { "#name": nameOp }
-    let macros = {}
-
-    for (let expr of body) {
-        value = ev(expr, ops, macros)
-    }
-
-    return value
-}
-```
-
-It's time to write the script macro. We want to simply evaluate and print everything : 
-
-```js
-let scriptMacro = ({ ev }, body) => {
-    let ops = { 
-        "+": plusOp,
-        "-": minusOp,
-        "*": timesOp,
-        "/": divideOp,
-        "#number": numberOp,
-        "#name": nameOp
-    }
-
-    let macros = { 
-        "chain": chainMacro
-    }
-
-    body.forEach(expr => console.log(ev(
-        expr, 
-        ops, 
-        chainMacro
-    )))
-}
-
-```
-
-Aaaand done ! When using `compiler.compile` to compile the following script :
-
-```
-2*8;
-3/4;
-3 + chain (7) {
-    1+value;      
-    5*value + 3;  
-    value-4
-}
-```
-
-it should print out 16, 0.75, and 42. You can, if you like, write other macros and operators (`**`, for example) to improve that small calculator of yours !
-
-The whole script, in case you need it :
-
-> JS script
-
-```js
-let error = msg => { throw msg }
-
-let plusOp = ([a,b]) => a+b
-let minusOp = ([a,b]) => a-b
-let timesOp = ([a,b]) => a*b
-let divideOp = ([a,b]) => a/b
-let numberOp = ([s]) => parseFloat(s)
-
-let nameOp = ([literal]) => error(`Syntax error : ${literal}.`)
-
-let chainMacro = ({ ev, operators }, body, [value]) => {
-    let nameOp = ([name]) => {
-        if (name === "value") return value
-        else operators["#name"]([name])
-    }
-
-    let ops = { "#name": nameOp }
-    let macros = {}
-
-    for (let expr of body) {
-        value = ev(expr, ops, macros)
-    }
-
-    return value
-}
-
-let scriptMacro = ({ ev }, body) => {
-    let ops = { 
-        "+": plusOp,
-        "-": minusOp,
-        "*": timesOp,
-        "/": divideOp,
-        "#number": numberOp,
-        "#name": nameOp
-    }
-
-    let macros = { 
-        "chain": chainMacro
-    }
-
-    body.forEach(expr => console.log(ev(
-        expr, 
-        ops, 
-        macros,
-    )))
-}
-
-let compiler = new MicroCompiler(
-    [
-        [{ name: "#number", arity: 1 }],
-        [{ name: "#name", arity: 1 }],
-        [{ name: "*", arity: 2 }, { name: "/", arity: 2 }],
-        [{ name: "+", arity: 2 }, { name: "-", arity: 2 }],
-    ],
-    [
-        { name: "chain", arity: 1 },
-    ],
-    literal => literal,
-    scriptMacro,
-)
-
-```
-
 
 ## Operators
 
