@@ -16,6 +16,8 @@ function between(a: number, b: number, x: number) {
     return a <= x && x <= b
 }
 
+// TODO : Make built-in syntax errors also gain headers.
+
 export class MicroCompiler<T> {
     static readonly WHITESPACE_CHARS = "\n\t "
     static readonly OPERATOR_CHARS = "&|~^@=+-'$*%!§/:.,?!<>"
@@ -34,7 +36,7 @@ export class MicroCompiler<T> {
      * @param scriptMacro - The global macro reducer that will be used to evaluate scripts.
      */
     constructor(
-        operators: (OpDeclaration | OpDeclaration[])[],
+        operators: OpDeclaration[][],
         macros: MacroDeclaration[],
         private lift: (literal: string) => T,
         private scriptMacro: MacroReducer<T>,
@@ -42,7 +44,7 @@ export class MicroCompiler<T> {
         this.operators = {}
         for (let i = 0; i<operators.length; i++) {
             let slice = operators[i]
-            for (let op of "includes" in slice ? slice : [slice]) {
+            for (let op of slice) {
                 this.operators[op.name] = { arity: typeof op.arity === "number" ? [op.arity, op.arity] : op.arity, precedence: operators.length-i}
             }
         }
@@ -118,7 +120,7 @@ export class MicroCompiler<T> {
         this.checkMacroExists(metadata, macro)
         let arity = this.macros[macro].arity
         if (!between(...arity, argcount)) {
-            throwWith(metadata, `Macro '${name}' expects between ${arity.join(" and ")} arguments, got ${argcount}.`)
+            throwWith(metadata, `Macro '${macro}' expects between ${arity.join(" and ")} arguments, got ${argcount}.`)
         }
     }
 
@@ -557,7 +559,7 @@ export class MicroCompiler<T> {
 
             case "macro":
                 let { name: name1, args, body, limbs, metadata: metadata1 } = ast
-                let macro = macros[name1] ?? throwWith(metadata1, `Macro '${name1}' was declared, but not implemented.`)
+                let macro = macros[name1]
                 try {
                     return macro(this.makeContext(operators, macros), body, args, limbs)
                 } catch (e) {
@@ -566,9 +568,9 @@ export class MicroCompiler<T> {
 
             case "operation":
                 let { operator: name2, operands, metadata: metadata2 } = ast
-                let evaluatedOperands = operands.map(x => this.eval(x, operators, macros))
-                let operator = operators[name2] ?? throwWith(metadata2, `Operator '${name2}' was declared, but not implemented.`)
+                let operator = operators[name2]
                 try {
+                    let evaluatedOperands = operands.map(x => this.eval(x, operators, macros))
                     return operator(evaluatedOperands)
                 } catch (e) {
                     throwWith(metadata2, e as string)
@@ -595,7 +597,18 @@ export class MicroCompiler<T> {
      */
     compile(src: string, scriptMacro: MacroReducer<T> = this.scriptMacro): T {
         let asts = this.parseScript(src)
-        return scriptMacro(this.makeContext({}, {}), asts, [], {}) 
+
+        let defaultOperators: MapLike<OpReducer<T>> = {} 
+        for (let op in this.operators) {
+            defaultOperators[op] = () => { throw `This use of operator '${op}' is not legal here.` }
+        }
+
+        let defaultMacros: MapLike<MacroReducer<T>> = {}
+        for (let macro in this.macros) {
+            defaultOperators[macro] = () => { throw `This use of macro '${macro}' is not legal here.` }
+        }
+
+        return scriptMacro(this.makeContext(defaultOperators, defaultMacros), asts, [], {}) 
     }
 }
 

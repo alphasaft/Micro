@@ -1,24 +1,29 @@
 # Micro
 
-Micro is a small library (~600 lines of code) for creating languages adapted to your needs, allowing you to describe whatever data you'd like in a elegant and concise way. Here's an example of a Micro script designed to express todo lists :
+Micro is a small library (~600 lines of code, including spacing) for creating languages adapted to your needs, 
+allowing you to describe whatever data you'd like in a elegant and concise way. 
+Here's an example of a Micro script designed to express todo lists :
 
 ```
 todo("Main todo list") {
     #critical "Pay my taxes";
     #important "Clean my room";
 
-    currentShow = "Arcane";
-    #important "Watch " + ?currentShow;
+    currentShow = "Monty Python";
+    #normal "Watch {?currentShow} !";
 };
 
-todo("For my holidays") {
-    #critical uppercase("Don't forget the keys !!!");
+if ([ [08/03/24] <= [#today] <= [08/31/24] ]) {
+    todo("For my holidays") {
+        #critical UPPERCASE("Don't forget the keys !!!");
+    };
 };
 ```
 
-Micro scripts are all based on the same generic yet very polymorpheous syntax that you can adapt to your needs. Micro then allows you to quickly parse that language to generate usable JS values out of it.
+Micro scripts are all based on the same generic yet very polymorpheous syntax that you can adapt to your needs. 
+Micro then allows you to quickly parse that language to generate usable JS values out of it.
 
-The tool itself is written in Javascript, and requires you to know this language before you can use it (You can learn Javascript [here](https://www.learn-js.org/)). Furthermore, I will quite often use typescript syntax to describe what types are expected.
+The tool itself is written in Typescript, but knowing Javascript is sufficient to use it (you can learn Javascript [here](https://www.learn-js.org/)). I will however quite often use Typescript syntax to describe what types are expected, but as you will see it's pretty simple to understand what I mean.
 
 Without further ado, let's get started !
 
@@ -32,8 +37,8 @@ We first need to create what is called an Micro compiler. For that, you need to 
 ```js
 let compiler = new MicroCompiler(
     [
-        { name: "*", arity: 2 },
-        { name: "+", arity: 2 },
+        [{ name: "*", arity: 2 }],
+        [{ name: "+", arity: 2 }],
     ],
     []
     _ => {},
@@ -42,7 +47,7 @@ let compiler = new MicroCompiler(
 ```
 
 The arguments passed to the `MicroCompiler<T>` (`T` being the output type for the compiler) constructor work as follow :
-- A `(OpDeclaration | OpDeclaration[])[]`, to declare the operators our scripts will be able to use. Here, we declare the `+` and `*` operators.
+- A `OpDeclaration[][]`, to declare the operators our scripts will be able to use. Here, we declare the `+` and `*` operators.
 - A `MacroDeclaration[]`, which declares the macros our script will be able to use.
 - A `(literal: string) => T` function, called _lift_.
 - A `MacroReducer<T>`, which is a function known as the _script macro_.
@@ -106,7 +111,7 @@ That's why you **always** have to tell yourself the compiler how expressions sho
 
 ```js
 [
-    { name: "*", arity: 2 },
+    [{ name: "*", arity: 2 }],
     [{ name: "+", arity: 2 }, { name: "-", arity: 2 }]
 ]
 ```
@@ -175,7 +180,7 @@ With `arity: 1` meaning the same as for operators : our newly created macro take
 
 ```
 [[ Fails with "Macro doSomething expects between 1 and 1 arguments, got 2." ]]
-doSomething (x, y) {
+doSomething (x; y) {
 
 };
 ```
@@ -228,7 +233,7 @@ In standard languages, it's, more often than not, **not** visible by the user, a
 
 ### Macros, again
 
-And that's where macros kick in ! Conceptually, macros are functions that are meant to evaluate parsed code, and return a standard JS value of type `T`. A macro is made up of two things : a `MacroDeclaration`, that you passed to the compiler and tell what the macro looks like, and something called a `MacroReducer<T>`, which tells what the macro does.
+And that's where macros kick in ! Conceptually, macros are functions that are meant to evaluate parsed code, and return a standard JS value of type `T`. A macro is made up of two things : a `MacroDeclaration`, that you passed to the compiler and tells what the macro looks like, and something called a `MacroReducer<T>`, which tells what the macro does.
 
 A `MacroReducer<T>` is a function that takes in four arguments to output an object of type `T` :
 * An context, of type `Context<T>`,
@@ -416,7 +421,7 @@ let verboseMacro = ({ ev }, body) => {
 }
 ```
 
-That may seem to work, but there is a problem. If we nest a arbitrary number of `verbose` blocks one inside another, we might expect any `+` inside to print out that much "Adding a and b !". In fact, it won't, because the `+` that gets used is the `+` of the innermost `verbose` macro that just prints it once. Luckily for us, the first `context` argument of macros has that `operators` field containing the reducers of the ambient operators. So we can change our implementation to this instead :
+That may seem to work, but there is a problem. If we nest a arbitrary number of `verbose` blocks one inside another, we might expect any `+` inside to print out that much "Adding a and b !". In fact, it won't, because the `+` that gets used is the `+` of the innermost `verbose` macro, that just prints it once. Luckily for us, the first `context` argument of macros has an `operators` field containing the reducers of the ambient operators. So we can change our implementation to this instead :
 
 ```js
 let verboseMacro = ({ ev, operators }, body) => {
@@ -434,11 +439,7 @@ let verboseMacro = ({ ev, operators }, body) => {
 
 And it will work as intended. The `context` argument also has a `macros` field containing the ambient macros if you need them.
 
-Generally speaking, it's a good practice to :
-* Pass in every operator at script level, even it's a dummy implementation that always throw
-* Delegate operator implementation to the ambient operator if you don't know what to do with its values. That way, nested macros don't interfere with one another. Eventually, if no one knows what to do, it will be passed to the script macro's operator implementation, and, if needed, will crash.
-
-Same applies for macros : pass in every declared macro reducer at script level, then delegate instead of throwing.
+Generally speaking, it's a good practice to delegate operator implementation to the ambient operator if you don't know what to do with its values. That way, nested macros don't interfere with one another. Eventually, if no one knows what to do, it will be passed to the compiler default operator implementation, that is, it will crash with the following message : "Operator op cannot be used here.". Same for macros : delegate instead of throwing.
 
 ### Micro knows nothing about numbers
 
@@ -474,7 +475,7 @@ Suppose we now want to actually implement numbers.
 // { '+': plusOp, '#number': numberOp } inside the script macro
 // reducer
 
-// This will for the implementation !
+// This will do for the implementation !
 let numberOp = ([s]) => parseFloat(s)
 ```
 
@@ -490,6 +491,13 @@ Same goes with names, such as `foo` : the `#name` operator is called with \`foo\
 
 You can declare and implement the `#string` and `#name` operators depending on your needs ; without them, strings and names respectively are not usable inside your script.
 
+## A practical example
+
+Inside the `./examples/calc.js` module, you will find the implementation for a small compiler designed to interpret and compute
+numeric expressions. While it is pretty simple and small, it still contains every notion we've learned until here, and it's good to
+understand how to intricate all of them to build a working compiler. If you first want to try for youself, you can read the description
+of the module and implement it, before looking at the solution (or coding while taking peeks at the solution !)
+
 ## Operators
 
 > "Why'd you write another chapter entirely focused on operators ? Haven't we covered most of it already ??"
@@ -504,7 +512,7 @@ Did you notice how `Operator` takes in an `arity` argument too ? Until there, we
 
 We can use operators in a unary way by prefixing an expression with said operator. Operator precedences still apply, but only at the right of the operator, as unary operators automatically bind tighter than everything on their left side.
 
-So `1 * +1` is parsed as `1*(+1)` since unary operators bind tighter that everything there is on their left, but `+1 * 1` is parsed as `+(1*1)` since precedence on the right side works normally and `*` binds tighter than `+`. This may seem weird, but it's actually pretty common behavior that is seen in many other languages.
+So `1 * +1` is parsed as `1*(+1)` since unary operators bind tighter that everything there is on their left, but `+1*1` is parsed as `+(1*1)` since precedence on the right side works normally and `*` binds tighter than `+`. This may seem weird, but it's actually pretty common behavior that is seen in many other languages.
 
 > If this confuses you, don't think too much about it ; it is intended to conform to your intuition.
 
@@ -626,7 +634,7 @@ For example, parsing `"1+2 is {1+2} !"`  will result in the following call to `#
 ]
 ```
 
-Due to how string formatting is implemented, arguments to string will always alternate between a literal and a string format argument, starting and ending with a literal, so `"{name} said to me {msg}"` would yield :
+Due to how string formatting is implemented, arguments to `#string` will always alternate between a literal and a string format argument, starting and ending with a literal, so `"{name} said to me {msg}"` would yield :
 
 ```
 [#string
@@ -646,6 +654,16 @@ Also, formatted strings can (although this is quite uncommon) be nested :
 ```
 
 If you want to forbid string formatting in your scripts, all you have to do is to declare `#string` with an arity of 1 : any formatted string will result in at least 3 arguments to `#string` because of the alternance between literals and expressions.
+
+## A practical example II
+
+It's time to code ! In the `examples/todolists.ts`, there is a full implementation of a language describing todolists 
+(the one given as an example at the very beginning of this README : I didn't lie when I said it was an actual Micro script !)  
+
+You'll see that it makes creative use of everything we've seen until here, especially our beloved
+pack syntax (`[01/20/24]`, in that language, is parsed as the ternary `/` operator applied to 01, 20 and 24, then evaluated to... a Date !) and that, all in all, it may be one of my favorite languages I've implemented with Micro. 
+
+As always, you should try to first implement it by yourself by looking only at the spec (at the top of the file). My implementation is only 200 lines long (spacing & explanatory comments included), and I'm pretty proud to show you that rather complex languages can be implemented that easily with Micro !
 
 ## Guess what ? We're not done with macros
 
@@ -1059,9 +1077,12 @@ let scriptMacro = ({ ev }, body) => {
         ast => {
             if (ast.operator !== "'") return ast
             else return {
+                // Copying the original ast's metadata
+                metadata: ast.metadata,
                 type: "operation",
                 operator: "#string",
                 operands: [{
+                    metadata: ast.metadata,
                     type: "literal",
                     // ast.operands[0] is the sole argument to the quote operator.
                     value: ast.operands[0].metadata.excerpt
@@ -1106,7 +1127,7 @@ Can't add a number and a string.
 ```
 
 The second is much more informative, and makes debugging far easier. It's that kind of error messages that Micro generates, and it's made possible by the fact `AST`s carry their metadata with them.  
-Any error you throw when evaluating your script automatically gains a stack trace, with one level of depth per line. For example, if the nullary operator `#error` always throw `"An error occured"`, that code :
+Any error you throw when evaluating your script automatically gains a stack trace, with one level of intrication per line. For example, if the nullary operator `#error` always throws `"An error occured"`, that code :
 
 ```
 if (true) {
@@ -1121,7 +1142,7 @@ Would result in `MicroCompiler.compile` crashing with the following error messag
 ```
 At (1, 1) : "if (true) {" :
 At (2, 5) : "do {" :
-At (3, 9) : "3+[#error]" :
+At (3, 8) : "3+[#error]" :
 At (3, 11) : "[#error]" : 
 An error occured.
 ```
@@ -1132,7 +1153,7 @@ You can yourself throw errors with `throwWith(metadata, msg)` from `./ast.js`. T
 @param metadata - Info on where the error happened  
 @param msg - The error message
 
-While the metadata you pass to it can, technically speaking, be created, it's really, really not recommanded, and it's a lot better to use the metadata of the AST the error, semantically speaking, occured in. Note that this is only useful to throw errors about `AST`s you are manipulating and not evaluating. For those you evaluate, you can just throw some classic string inside the reducer, and it will automatically gain  headers when the error bubbles up.
+While the metadata you pass to it can, technically speaking, be created, it's really, really not recommanded, and it's a lot better to use the metadata of the AST the error occured in. Note that this is only useful to throw errors about `AST`s you are manipulating and not evaluating. For those you evaluate, you can just throw some classic string inside the reducer, and it will automatically gain  headers when the error bubbles up.
 
 ### With great power comes great responsability
 
@@ -1146,7 +1167,7 @@ There is plenty of things you can do with it, from describing complex data struc
 
 At the time I'm writing this, I nearly began experimenting with that language. There's cool things that came out without me noticing in the first place (nullary operators, for example, had their own syntax, before I found out that prefix packs worked really well with them, and I had to find for myself that I actually had list literals backed into the language with `,` + the infix pack syntax). I hope there will be others.  
 
-I use this tool in my projects, so it will be maintained and updated whenever I feel it is necessary. The whole ambient operators/macros thing didn't exist before I wrote some code myself and told me 'uh, that's painful to keep track of which operators do what', scoping used to work in a far less efficient way in earlier versions, and macro binding was implemented because I was sick of having to write ugly things like `"f = function() { ... }"` all the time. I do my best so that this language stays easy and pleasant to use, and I hope that it will suffice. If you have any suggestions about the syntax or the way Micro works, you can mail me at `alphasaft.github@gmail.com`. 
+I use this tool in my projects, so it will be maintained and updated whenever I feel the need for it. The whole ambient operators/macros thing didn't exist before I wrote some code and told myself 'uh, that's painful to keep track of which operators do what', scoping used to work in a far less efficient way in earlier versions, and macro binding was implemented because I was sick of having to write ugly things like `"f = function() { ... }"` all the time. I do my best so that this language stays easy and pleasant to use, and I hope that it will suffice. If you have any suggestions about the syntax or the way Micro works, you can mail me at `alphasaft.github@gmail.com`. 
 
 I wish you a great day,  
 Alphasaft
