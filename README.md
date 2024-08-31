@@ -128,7 +128,8 @@ Now for the the list of all keywords of the language :
 
 No keywords, actually ! Instead, we got hash operators. These are operators that start with `#` (hence the name), followed by one or more letters : `#foo` or `#bar` for instance.  These are used just like normal, symbol-based operators, and allow for nicer syntax when needed : `elem >?> myList` is pretty obfuscated, while `elem #in myList` is crystal clear !
 
-> If you wonder, here are the symbols that can be used in symbolic operators : `&|~^@=+'-$*%!/:.,?!<>`. Any combination of such symbols is a valid operator.
+> If you wonder, here are the symbols that can be used in symbolic operators : `&|~^@=+'-$*%!/:.,?!<>`. Any combination of such symbols is a valid operator. `#` also is a valid operator, but it's actually an hash operator with no letters following it, and `#` cannot
+be used in symbolic operators otherwise.
 
 I repeat one more time, because it's quite important and easy to miss : **hash operators do not differ from standard operators like `+`, and it's only a matter of stylistic preference.**
 
@@ -421,12 +422,15 @@ let verboseMacro = ({ ev }, body) => {
 }
 ```
 
-That may seem to work, but there is a problem. If we nest a arbitrary number of `verbose` blocks one inside another, we might expect any `+` inside to print out that much "Adding a and b !". In fact, it won't, because the `+` that gets used is the `+` of the innermost `verbose` macro, that just prints it once. Luckily for us, the first `context` argument of macros has an `operators` field containing the reducers of the ambient operators. So we can change our implementation to this instead :
+While that may seem to work, there is a problem. If we nest a arbitrary number of `verbose` blocks one inside another, we might expect any `+` inside to print out that much "Adding a and b !". In fact, it won't, because the `+` that gets used is the `+` of the innermost `verbose` macro, that just prints it once. Luckily for us, the first `context` argument of macros has an `operators` field containing the reducers of the ambient operators. So we can change our implementation to this instead :
 
 ```js
 let verboseMacro = ({ ev, operators }, body) => {
     let ambientPlusOp = operators["+"]
     let localPlusOp = ([a,b]) => {
+        // We print, then we delegate to the ambient implementation. 
+        // What this implementation actually does is none of our business ; but by
+        // delegating, we won't interfere with the other macros.
         console.log(`Adding ${a} and ${b} !`)
         return ambientPlusOp([a, b])
     }
@@ -439,7 +443,7 @@ let verboseMacro = ({ ev, operators }, body) => {
 
 And it will work as intended. The `context` argument also has a `macros` field containing the ambient macros if you need them.
 
-Generally speaking, it's a good practice to delegate operator implementation to the ambient operator if you don't know what to do with its values. That way, nested macros don't interfere with one another. Eventually, if no one knows what to do, it will be passed to the compiler default operator implementation, that is, it will crash with the following message : "Operator op cannot be used here.". Same for macros : delegate instead of throwing.
+Generally speaking, it's a good practice to delegate operator implementation to the ambient operator if you don't know what to do with its values. That way, nested macros don't interfere with one another. Eventually, if no one knows what to do, it will be passed to the compiler default operator implementation, that is, it will crash with the following message : "This use of operator op is illegal here.". Same for macros : better to delegate than to throw.
 
 ### Micro knows nothing about numbers
 
@@ -495,8 +499,7 @@ You can declare and implement the `#string` and `#name` operators depending on y
 
 Inside the `./examples/calc.js` module, you will find the implementation for a small compiler designed to interpret and compute
 numeric expressions. While it is pretty simple and small, it still contains every notion we've learned until here, and it's good to
-understand how to intricate all of them to build a working compiler. If you first want to try for youself, you can read the description
-of the module and implement it, before looking at the solution (or coding while taking peeks at the solution !)
+understand how to intricate all of them to build a functionnal compiler. If you first want to try for youself, you can read the description of the module and implement it, before looking at the solution (or coding while taking peeks at it !)
 
 ## Operators
 
@@ -599,12 +602,12 @@ To call an operator with 0 arguments, you thus need to enclose it in square brac
 
 ### Special operators : `#call` and `#index`
 
-Ever wondered why the `{}` following a macro are not optional ?   
+Ever wondered why the curly brackets following a macro are not optional ?   
 That's actually because they are needed to disambiguate macro syntax from a special operator called... well, `#call`. When an expression of the form `callee(arg1; ...; argn;)` (last semicolon optional) is encountered, `callee` as well as `arg1`, ..., `argn` are parsed, then passed together to the special `#call` operator in that order.
 
 > `callee` can be any expression, and, in particular, it can be a name. `myMacro()` would therefore be parsed as applying `#call` to name `myMacro`, which likely isn't what you want here. Adding `{}` at the end forces the compiler to parse that as a macro, since `(myMacro()) {}` doesn't make sense.
 
-This is actually very cool syntactic sugar !
+This is very cool syntactic sugar that allows for function call - like expressions !
 
 ```
 myFunction(1; 2; 3);  [[ Same as [#call myFunction; 1; 2; 3] ]]
@@ -612,7 +615,7 @@ myFunction(1; 2; 3);  [[ Same as [#call myFunction; 1; 2; 3] ]]
 
 Note that semicolons tell arguments apart from each other, not comas. Comas are regular operators, and `f(1,2,3)` is actually `[#call f; (1,2,3)]`. This might take some time for you to get used to it.
 
-> Using `#call` without that added syntactic sugar is not considered a bad practice, and you can write `[#call f]` or `#call f` instead of `f()` if you prefer. Writing `[f #call 1 #call 2]` for `f(1; 2)`, on the other hand, is very unclear and therefore not recommanded.
+> Using `#call` without that added syntactic sugar is not considered a bad practice, and you can write `[#call f; 1; 2]` instead of `f(1; 2)` if you prefer. Writing `[f #call 1 #call 2]` for `f(1; 2)`, on the other hand, is very unclear and therefore not recommanded.
 
 Same goes for `x[arg1; ...; argn;]` (last semicolon optional) with the `#index` operator : it will be translated to `[#index x; arg1; ...; argn]`, so that you can write `myArray[0]` to mean `myArray #index 0`. Neat, isn't it ?
 
@@ -622,7 +625,7 @@ Such expressions can be nested : `x[0][1]` is `(x #index 0) #index 1`, `f()()` i
 
 ### String format using `#string`
 
-There is slightly more going on with strings that I told you. In Micro, we have _string formatting_, which takes this form : if a `{` is encountered inside a string, the compiler will try to parse the expression contained between it and the closing `}`. Then, it passes that AST to the `#string` operator, and goes on.
+There is slightly more going on with strings than what I told you. In Micro, we have _string formatting_, which takes this form : if a `{` is encountered inside a string, the compiler will try to parse the expression contained between it and the closing `}`. Then, it passes that AST to the `#string` operator, and goes on.
 
 For example, parsing `"1+2 is {1+2} !"`  will result in the following call to `#string` :
 
@@ -660,8 +663,9 @@ If you want to forbid string formatting in your scripts, all you have to do is t
 It's time to code ! In the `examples/todolists.ts`, there is a full implementation of a language describing todolists 
 (the one given as an example at the very beginning of this README : I didn't lie when I said it was an actual Micro script !)  
 
-You'll see that it makes creative use of everything we've seen until here, especially our beloved
-pack syntax (`[01/20/24]`, in that language, is parsed as the ternary `/` operator applied to 01, 20 and 24, then evaluated to... a Date !) and that, all in all, it may be one of my favorite languages I've implemented with Micro. 
+You'll see that it makes creative use of everything we've seen until here, especially our beloved pack syntax 
+(`[01/20/24]`, in that language, is parsed as the ternary `/` operator applied to 01, 20 and 24, then is evaluated to... a Date !) 
+and that, all in all, it may be one of my favorite languages I've implemented with Micro. 
 
 As always, you should try to first implement it by yourself by looking only at the spec (at the top of the file). My implementation is only 200 lines long (spacing & explanatory comments included), and I'm pretty proud to show you that rather complex languages can be implemented that easily with Micro !
 
@@ -1159,6 +1163,14 @@ While the metadata you pass to it can, technically speaking, be created, it's re
 
 Just like macros extended syntax, AST manipulation allows for cool, but also very wild things. So, once again, _can doesn't mean should_, and you must always think about a reducer-based solution before going all in with `replace`. Also, `replace` traverses the whole `AST`, and using it extensively can result in performance issues. 
 
+## Let's practice III
+
+In the `./examples/javascript.ts` file, there is an implementation of a full JS-looking language. 
+It's a LOT tougher than the two other Micro languages, but I hope you will try nevertheless to implement it yourself,
+even if your implementation doesn't fully work/has issues/doesn't do exactly what the spec says.
+
+It's our third and final example, and it aims at demonstrating that even 'true' languages, that look like it was
+coded for itself, can be implemented with Macro.
 
 ## Conclusion
 

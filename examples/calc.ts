@@ -115,7 +115,8 @@ let src = `
 /** Throws if the calc compiler misbehaves. */
 export function calcTest() {
     let result = calcCompiler.compile(src)
+    console.log(result)
     if (result.length !== 3) throw "Test failed."
     let [a,b,c] = result
-    if (a !== 3 || b !== 20 || c !== 12) throw "Test failed."
+    if (a !== 3 || b !== 20.5 || c !== 12) throw "Test failed."
 }

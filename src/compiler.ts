@@ -1,4 +1,4 @@
-import { AST, ASTMetadata } from "./ast"
+import { AST, ASTMetadata, expect } from "./ast"
 import { Context } from "./context"
 import { MacroDeclaration, MacroReducer } from "./macro"
 import { OpDeclaration, OpReducer } from "./operator"
@@ -23,6 +23,12 @@ export class MicroCompiler<T> {
     static readonly OPERATOR_CHARS = "&|~^@=+-'$*%!§/:.,?!<>"
     static readonly zeroCC = '0'.charCodeAt(0)
     static readonly nineCC = '9'.charCodeAt(0)
+    static readonly callOp = "#call"
+    static readonly indexOp = "#index"
+    static readonly bindOp = "#bind"
+    static readonly numberOp = "#number"
+    static readonly stringOp = "#string"
+    static readonly nameOp = "#name"
 
     private operators: MapLike<InternalOpDeclaration>
     private macros: MapLike<InternalMacroDeclaration>
@@ -143,7 +149,7 @@ export class MicroCompiler<T> {
         return { src: src, excerpt: src.substring(i, j), loc: i }
     }
 
-    private flush(src: string, i: index): length {
+    private flushed(src: string, i: index): index {
         let j = i
 
         if (src.substring(j, j+2) === "[[") {
@@ -170,7 +176,7 @@ export class MicroCompiler<T> {
             }
         }
 
-        return j-i > 0 ? this.flush(src, j) + j-i : j-i
+        return j-i > 0 ? this.flushed(src, j) : j
     }
     
     private parseSymbolicOperator(src: string, i: index): [string, length] {
@@ -180,13 +186,15 @@ export class MicroCompiler<T> {
     }
 
     private parseHashOperator(src: string, i: index): [string, length] {
-        let j = i+1
-        while (this.isLetter(src, j)) j++
+        i = this.flushed(src, i)
+        let j = i
+        if (src[j] !== '#') throwWith(this.makeMetadata(src, j, j+1), "'#' expected.")
+        while (this.isLetterOrNumber(src, j)) j++
         return [src.substring(i, j), j-i]
     }
 
     private parseIdentifier(src: string, i: index): [string, length] {
-        i += this.flush(src, i)
+        i = this.flushed(src, i)
 
         let j = i
         if (!this.isLetter(src, j)) throwWith(this.makeMetadata(src, i, i+1), "Letters expected.")
@@ -197,11 +205,11 @@ export class MicroCompiler<T> {
     }
 
     private parseString(src: string, i: index): [AST, length] {
-        i += this.flush(src, i)
+        i = this.flushed(src, i)
 
         let j = i
         if (src[j] !== '"') throwWith(this.makeMetadata(src, i, i+1), "'\"' expected.")
-        j += 1 + this.flush(src, j+1)
+        j = this.flushed(src, j+1)
 
         let args: AST[] = []        
         if (src[j] === '{') args.push(this.makeLiteral("", this.makeMetadata(src, j, j)))
@@ -209,7 +217,7 @@ export class MicroCompiler<T> {
             if (src[j] === '{') {
                 j++
                 let [arg, consumed] = this.parseExpression(src, j)
-                j += consumed + this.flush(src, j+consumed)
+                j = this.flushed(src, j+consumed)
                 if (src[j] !== '}') throwWith(this.makeMetadata(src, j, j+1), "'}' expected.")
                 j++
                 args.push(arg)
@@ -230,7 +238,7 @@ export class MicroCompiler<T> {
     }
 
     private parseNumber(src: string, i: index): [AST, length] {
-        i += this.flush(src, i)
+        i = this.flushed(src, i)
 
         let j = i
         while (this.isNumber(src, j)) j++
@@ -241,12 +249,12 @@ export class MicroCompiler<T> {
     }
 
     private parseExpressionSequence(src: string, i: index, end: char, start?: char): [AST[], length] {
-        i += this.flush(src, i)
+        i = this.flushed(src, i)
         let j = i
 
         if (start) {
             if (src[j] !== start) throwWith(this.makeMetadata(src, i, i+1), `'${start}' expected.`)
-            j += 1+this.flush(src, j+1)
+            j = this.flushed(src, j+1)
         }
 
         if (src[j] === end) {
@@ -258,14 +266,14 @@ export class MicroCompiler<T> {
         let done = false
         while (!done) {
             let [expr, consumed] = this.parseExpression(src, j)   
-            j += consumed + this.flush(src, j+consumed)
+            j = this.flushed(src, j+consumed)
             let semicolonSeen = src[j] === ';'
-            if (src[j] === ';') j += 1 + this.flush(src, j+1)
+            if (src[j] === ';') j = this.flushed(src, j+1)
             let endSeen = src[j] === end
             if (src[j] === end) {
                 done = true
                 j++
-            } 
+            }
             if (!(semicolonSeen || endSeen)) throwWith(this.makeMetadata(src, j, j+1), `';' expected.`)
             sequence.push(expr)
         }
@@ -274,16 +282,16 @@ export class MicroCompiler<T> {
     }
     
     private parseMacroOrName(src: string, i: index): [AST, length] {
-        i += this.flush(src, i)
+        i = this.flushed(src, i)
         let j = i
 
         let [name, consumed1] = this.parseIdentifier(src, j)
-        j += consumed1 + this.flush(src, j+consumed1)
+        j = this.flushed(src, j+consumed1)
 
         let [boundTo, consumed2] = this.isLetter(src, j) ? (([s,l]): [AST, length] => [this.makeLiteral(s, this.makeMetadata(src, j, j+l)), l])(this.parseIdentifier(src, j)) : [null, 0]
-        j += consumed2 + this.flush(src, j+consumed2)
+        j = this.flushed(src, j+consumed2)
         let [args, consumed3] = src[j] === '(' ? this.parseExpressionSequence(src, j, ')', '(') : [null, 0]
-        j += consumed3 + this.flush(src, j+consumed3)
+        j = this.flushed(src, j+consumed3)
 
         if (src[j] === '{') {
             this.checkMacroExists(this.makeMetadata(src, i, i+consumed1), name)
@@ -291,17 +299,17 @@ export class MicroCompiler<T> {
             j += consumed4
 
             let limbs: MapLike<AST[]> = {}
-            let flush = this.flush(src, j)
-            while (this.isLetter(src, j+flush)) {
-                j += flush
+            let flushed = this.flushed(src, j)
+            while (this.isLetter(src, flushed)) {
+                j = flushed
                 let [limbName, consumed5] = this.parseIdentifier(src, j)
                 this.checkMacroHasLimb(this.makeMetadata(src, j, j+consumed5), name, limbName)
                 if (limbName in limbs) throwWith(this.makeMetadata(src, j, j+consumed5), "Can't declare twice the limb '" + limbName + "'.")
-                j += consumed5 + this.flush(src, j+consumed5)
+                j = this.flushed(src, j+consumed5)
                 let [limb, consumed6] = this.parseExpressionSequence(src, j, '}', '{')
                 limbs[limbName] = limb
                 j += consumed6
-                flush = this.flush(src, j)
+                flushed = this.flushed(src, j)
             }
 
             let metadata = this.makeMetadata(src, i, j)
@@ -323,7 +331,7 @@ export class MicroCompiler<T> {
         } 
 
         if (boundTo !== null) {
-            let boundNameStart = i + consumed1 + this.flush(src, i+consumed1)
+            let boundNameStart = i + consumed1 + this.flushed(src, i+consumed1)
             throwWith(this.makeMetadata(src, boundNameStart, boundNameStart+consumed2), "Operator expected.")
         }
         
@@ -349,19 +357,21 @@ export class MicroCompiler<T> {
     }
 
     private parseParenthesizedExpression(src: string, i: index): [AST, length] {
-        i += this.flush(src, i)
-        let j = i+1 + this.flush(src, i+1)
+        i = this.flushed(src, i)
+        let j = i
+        if (src[j] !== '(') throwWith(this.makeMetadata(src, j, j+1), "'(' expected.")
+        j = this.flushed(src, j+1)
         let [ast, consumed] = this.parseExpression(src, j)
-        j += consumed + this.flush(src, j+consumed)
+        j = this.flushed(src, j+consumed)
         if (src[j] !== ')') throwWith(this.makeMetadata(src, j, j+1), "')' expected.")
         j++
         return [ast, j-i]
     }
 
     private parseBracketedExpression(src: string, i: index): [AST, length] {
-        i += this.flush(src, i)
+        i = this.flushed(src, i)
         let j = i+1
-        j += this.flush(src, j)
+        j = this.flushed(src, j)
 
         return this.isOperatorFirstChar(src, j) 
             ? this.parsePrefixBracketedExpression(src, i) 
@@ -369,12 +379,12 @@ export class MicroCompiler<T> {
     }
     
     private parsePrefixBracketedExpression(src: string, i: index): [AST, length] {
-        i += this.flush(src, i)
+        i = this.flushed(src, i)
         let j = i
         if (src[j] !== '[') throwWith(this.makeMetadata(src, j, j+1), "'[' expected.")
-        j += 1+this.flush(src, i+1)
+        j = this.flushed(src, i+1)
         let [operator, consumed] = this.parseOperator(src, j)
-        j += consumed + this.flush(src, j+consumed)
+        j = this.flushed(src, j+consumed)
         let [operands, consumed2] = this.parseExpressionSequence(src, j, ']')
         j += consumed2
 
@@ -382,19 +392,27 @@ export class MicroCompiler<T> {
     }
 
     private parseInfixBracketedExpression(src: string, i: index): [AST, length] {
-        i += this.flush(src, i)
+        i = this.flushed(src, i)
         if (src[i] !== '[') throwWith(this.makeMetadata(src, i, i+1), "'[' expected.")
-        let j = i+1+this.flush(src, i+1)
+        let j = this.flushed(src, i+1)
 
-        let [operatorands, consumed] = this.preparseOperands(src, j)
-        j += consumed + this.flush(src, j+consumed)
-        if (this.isExpressionFirstChar(src, j)) {
-            let [trailingOperator, consumed] = this.parseOperator(src, j)
-            j += consumed + this.flush(src, j+consumed)
-            operatorands.push(trailingOperator)
+        let operatorands: (AST | string)[] = []
+        let expectOperator = false
+        while (true) {
+            if (src[j] === ']') {
+                break
+            } else if (expectOperator) {
+                let [op, consumed] = this.parseOperator(src, j) 
+                operatorands.push(op)
+                j = this.flushed(src, j+consumed)
+            } else if (this.isExpressionFirstChar(src, j)) {
+                let [operand, consumed] = this.parseOperand(src, j, false)
+                operatorands.push(operand)
+                j = this.flushed(src, j+consumed)
+            }
+
+            expectOperator = !expectOperator
         }
-        if (src[j] !== ']') throwWith(this.makeMetadata(src, j, j+1), "']' expected.")
-        j++
 
         if (operatorands.length < 2) throwWith(this.makeMetadata(src, i, j), "Infix bracket expressions expect at least an operand and an operator.")
 
@@ -410,95 +428,76 @@ export class MicroCompiler<T> {
         }
 
         let operands: AST[] = []
-        for (let i = 0; i<operatorands.length; i+=2) operands.push(operatorands[i] as AST)
+        for (let k = 0; k<operatorands.length; k+=2) operands.push(operatorands[k] as AST)
 
         return [this.makeOperation(operator, operands, this.makeMetadata(src, i, j)), j-i]
     }
 
     private parseUnaryOperation(src: string, i: index): [AST, length] {
-        i += this.flush(src, i)
+        i = this.flushed(src, i)
 
         let j = i
         let [operator, consumed1] = this.parseOperator(src, j)
-        j += consumed1 + this.flush(src, j+consumed1)
-        let [operand, consumed2] = this.parseExpression(src, j, this.operators[operator].precedence+1)
-        j += consumed2 + this.flush(src, j+consumed2)
+        j = this.flushed(src, j+consumed1)
+        let [operand, consumed2] = this.parseExpression(src, j, this.operators[operator].precedence)
+        j = this.flushed(src, j+consumed2)
 
         return [this.makeOperation(operator, [operand], this.makeMetadata(src, i, j)), j-i]
     }
 
-    private parseExpression(src: string, i: index, minPrecedence: number = 0): [AST, length] {
-        i += this.flush(src, i)
-
+    private parseExpression(src: string, i: index, strictMinPrecedence: number = 0): [AST, length] {
+        i = this.flushed(src, i)
         let j = i
-        let [operatorands, consumed] = this.preparseOperands(src, j, minPrecedence)
-        j += consumed + this.flush(src, j+consumed)
 
-        let self = this
-        function fold(operatorands: (AST | string)[]): AST {
-            if (operatorands.length === 1) return operatorands[0] as AST
+        let { callOp, indexOp } = MicroCompiler
+        let [leftSide, consumed1] = this.parseOperand(src, j)
+        j = this.flushed(src, j+consumed1)
 
-            let lowestPrecedenceIndex: index = 1
-            let lowestPrecedence: number = self.operators[operatorands[1] as string].precedence
-            for (let k = 1; k<operatorands.length; k+=2) {
-                let op = operatorands[k] as string
-                let precedence = self.operators[op].precedence
-                if (lowestPrecedence >= precedence) {
-                    lowestPrecedence = precedence
-                    lowestPrecedenceIndex = k
-                }
+        while (true) {
+            if (src[j] === '(') {
+                this.checkOperatorExists(this.makeMetadata(src, j, j+1), callOp)
+                if (this.operators[callOp].precedence <= strictMinPrecedence) break
+
+                let [args, consumed2] = this.parseExpressionSequence(src, j, ')', '(')
+                leftSide = this.makeOperation("#call", [leftSide, ...args], this.makeMetadata(src, i, j))
+                j = this.flushed(src, j+consumed2)
+
+            } else if (src[j] === '[') {
+                this.checkOperatorExists(this.makeMetadata(src, j, j+1), indexOp)
+                if (this.operators[indexOp].precedence <= strictMinPrecedence) break
+
+                let [args, consumed3] = this.parseExpressionSequence(src, j, ']', '[')
+                leftSide = this.makeOperation("#index", [leftSide, ...args], this.makeMetadata(src, i, j))
+                j = this.flushed(src, j+consumed3)
+
+            } else if (this.isOperatorFirstChar(src, j)) {
+                let [op, consumed4] = this.parseOperator(src, j)
+                if (this.operators[op].precedence <= strictMinPrecedence) break 
+
+                j = this.flushed(src, j+consumed4)
+                let [rightSide, consumed5] = this.parseExpression(src, j, this.operators[op].precedence)
+                j += consumed5
+                leftSide = this.makeOperation(op, [leftSide, rightSide], this.makeMetadata(src, i, j))
+                j = this.flushed(src, j)
+
+            } else {
+                break
             }
-            let operator = operatorands[lowestPrecedenceIndex] as string
-            let left = operatorands.slice(0, lowestPrecedenceIndex)
-            let right = operatorands.slice(lowestPrecedenceIndex+1)
-
-            return self.makeOperation(
-                operator,
-                [fold(left), fold(right)],
-                self.makeMetadata(
-                    src, 
-                    (operatorands[0] as AST).metadata.loc, 
-                    (m => m.loc + m.excerpt.length)((operatorands.at(-1) as AST).metadata)
-                )
-            )
         }
 
-        return [fold(operatorands), j-i]
-    }
-
-    private preparseOperands(src: string, i: index, minPrecedence: number = 0): [(AST | string)[], length] {
-        let operatorands: (AST | string)[] = []
-
-        i += this.flush(src, i)
-        let j = i
-        let [firstOperand, consumed] = this.parseOperand(src, j)
-        j += consumed + this.flush(src, j+consumed)
-        operatorands.push(firstOperand)
-
-        while (this.isOperatorFirstChar(src, j)) {
-            let [operator, consumed1] = this.parseOperator(src, j)
-
-            if (this.operators[operator].precedence < minPrecedence) break
-
-            let flush = this.flush(src, j+consumed1)
-            if (!this.isExpressionFirstChar(src, j+consumed1+flush)) break 
-            else j += consumed1 + flush
-
-            let [operand, consumed2] = this.parseOperand(src, j)
-            j += consumed2 + this.flush(src, j+consumed2)
-            
-            operatorands.push(operator, operand)
-        }
-
-        return [operatorands, j-i]
+        return [leftSide, j-i]
     }
 
     private parseOperator(src: string, i: index): [string, length] {
+        i = this.flushed(src, i)
+
+        if (!this.isOperatorFirstChar(src, i)) throwWith(this.makeMetadata(src, i, i+1), "Operator expected.")
+
         let [op, consumed] = this.isSymbolicOperatorChar(src, i)
             ? this.parseSymbolicOperator(src, i)
             : this.parseHashOperator(src, i)
         
-        if (!(op in this.operators)) throwWith(this.makeMetadata(src, i, i+consumed), `Unknown operator.`)
+        this.checkOperatorExists(this.makeMetadata(src, i, i+consumed), op)
 
         return [op, consumed]
     }
@@ -507,15 +506,16 @@ export class MicroCompiler<T> {
         return i < src.length && (this.isLetter(src, i) || this.isNumber(src, i) || this.isOperatorFirstChar(src, i) || "{([\"".includes(src[i]))
     }
 
-    private parseOperand(src: string, i: index): [AST, length] {
-        i += this.flush(src, i)
+    private parseOperand(src: string, i: index, allowUnaryOperations: boolean = true): [AST, length] {
+        i = this.flushed(src, i)
         let j = i
 
         let [operand, consumed] =
               this.isEOF(src, j)                  ? throwWith(this.makeMetadata(src, j, j+1), "Unexpected end of file while parsing operand.") 
             : this.isLetter(src, j)               ? this.parseMacroOrName(src, j)
-            : this.isOperatorFirstChar(src, j)    ? this.parseUnaryOperation(src, j)
             : this.isNumber(src, j)               ? this.parseNumber(src, j)
+            : this.isOperatorFirstChar(src, j) 
+              && allowUnaryOperations             ? this.parseUnaryOperation(src, j)
             : src[j] === '('                      ? this.parseParenthesizedExpression(src, j)
             : src[j] === '['                      ? this.parseBracketedExpression(src, j)
             : src[j] === '"'                      ? this.parseString(src, j)
@@ -523,14 +523,14 @@ export class MicroCompiler<T> {
             : throwWith(this.makeMetadata(src, j, j+1), "Unexpected character : '" + src[j] + "'.")
 
         j += consumed
-        let flush = this.flush(src, j)
-        while (src[j+flush] === '(' || src[j+flush] === '[') {
-            j += flush
+        let flushed = this.flushed(src, j)
+        while (src[j+flushed] === '(' || src[j+flushed] === '[') {
+            j = flushed
             let operator = { '(': "#call", '[': "#index" }[src[j]]!
             let matchingEnd = { '(': ')', '[': ']' }[src[j]]!
             let [args, consumed] = this.parseExpressionSequence(src, j, matchingEnd, src[j])
             j += consumed 
-            flush = this.flush(src, j+consumed)
+            flushed = this.flushed(src, j+consumed)
             operand = this.makeOperation(
                 operator, 
                 [operand, ...args], 

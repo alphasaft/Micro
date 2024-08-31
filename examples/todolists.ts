@@ -1,5 +1,5 @@
 /**
- * This is the second of our example series. 
+ * This is the second of our examples. 
  * It's an actual implementation of the Micro language given at the beginning of the README.md,
  * that aims at describing todo lists and mostly uses concepts from the second chapter (operators) 
  * of that same file.
@@ -15,6 +15,24 @@
  * - A <= operator that can compare dates together,
  * - An implementation of the #call operator allowing to translate UPPERCASE(str) to that same
  * string in upper case, and lowercase(str) to that same string in lower case.
+ * 
+ * Here's an example of a script constructed with this spec :
+ * 
+ *  todo("Everyday life") {
+ *      #critical "Pay my taxes";
+ *      #important "Clean my room";
+ *
+ *      currentShow = "Monty Python";
+ *      #normal "Watch {?currentShow} !";
+ *   };
+ *
+ *  if ([ [08/03/24] <= [#today] <= [08/30/24] ]) {
+ *      todo("Holidays") {
+ *          #normal "Towels";
+ *          #critical UPPERCASE("Don't forget the keys !!!");
+ *      };
+ *  };
+
  */
 
 import { MicroCompiler } from "../src/compiler";
