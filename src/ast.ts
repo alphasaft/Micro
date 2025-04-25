@@ -1,100 +1,162 @@
-import { MapLike } from "./util";
+import { Metadata, throwWith } from "./metadata";
+import { arity, between, Dictionary, toRangeArity } from "./_util";
 
-export type ASTType = "macro" | "operation" | "literal"
-export type ASTMetadata = { src: string; excerpt: string; loc: number; };
-export type AST =
-    { metadata: ASTMetadata; type: ASTType } &
-    ({ type: "macro"; name: string; args: AST[]; body: AST[]; limbs: MapLike<AST[]>; } |
-    { type: "operation"; operator: string; operands: AST[]; } |
-    { type: "literal"; value: string; });
-
-
-function mapValues<T, R>(obj: MapLike<T>, f: (x: T) => R): MapLike<R> {
-    let result: MapLike<R> = {} 
-    for (let prop in obj) result[prop] = f(obj[prop])
-    return result
-}
 
 /** 
- * Replaces every sub-AST of matching `type` inside `ast` until `depth` with the result of applying `f` to it. 
- * Replacement is done in a bottom-to-top fashion, so ASTs passed to `f` can have some of their members already replaced.
- * @param type - The type of AST that should be replaced
- * @param f - The function to apply
- * @param ast - The ast on which replacements should be performed.
- * @param depth - The maximum depth until which replacement should be performed in termes of nested macros, defaulting to Infinity
+ * An AST representing a macro call 
+ * @field metadata: Please refer to the Metadata documentation.
+ * @field type: Always "macro". Identifies this AST type among the others.
+ * @field name: The name of the called macro
+ * @field head: The head (argument list) that was passed to the macro when calling it.
+ * @field body: The statements inside the body of the macro, in order.
+ * @field limbs: An object whose fields are the limbs of the macro.
  */
-export function replace<Type extends ASTType>(
-    type: Type, 
-    f: (ast: AST & { type: Type }) => AST,
-    ast: AST,
-    depth: number = Infinity,
-): AST {
-    let newAst: AST
+export type MacroAST = { metadata: Metadata; type: "macro"; name: string; head: AST[]; body: AST[]; limbs: Dictionary<AST[]>; }
 
+
+/** 
+ * An AST representing an operation
+ * @field metadata: Please refer to the Metadata documentation.
+ * @field type: Always "operation". Identifies this AST type among the others.
+ * @field operator: The (possibly symbolic) name of the operator. 
+ * @field operands : The operands that the operator acts on.
+ */
+export type OpAST = { metadata: Metadata; type: "operation"; operator: string; operands: AST[]; }
+
+/** 
+ * An AST representing a literal excerpt of the source code.
+ * @field metadata: Please refer to the Metadata documentation.
+ * @field type: Always "literal". Identifies this AST type among the others.
+ * @field value: A string that matches the excerpt of the source code.
+ */
+export type LiteralAST = { metadata: Metadata; type: "literal"; value: string; }
+
+/** 
+ * An AST. Can be a MacroAST, an OPAst, or a LiteralAST.
+ */
+export type AST = MacroAST | OpAST | LiteralAST
+
+
+/** Utility function provided for debuging purposes, pretty-printing ast with n spaces for indent. */
+export function printAst(ast: AST, n = 0) {
+    let indent = " ".repeat(n*4)
     switch (ast.type) {
         case "literal": 
-            newAst = ast
+            console.log(indent + "`"+ast.value+"`")
+            break
+
+        case "operation": 
+            console.log(indent+ast.operator)
+            ast.operands.map(op => printAst(op, n+1))
             break
 
         case "macro":
-            newAst = depth === 0 
-                ? ast
-                : {
-                    ...ast,
-                    body: ast.body.map(ast => replace<Type>(type, f, ast, depth-1)),
-                    args: ast.args.map(ast => replace<Type>(type, f, ast, depth)),
-                    limbs: mapValues(ast.limbs, asts => asts.map(ast => replace<Type>(type, f, ast, depth-1)))
+            console.log(indent+ast.name+"(...)")
+            ast.body.forEach(stmt => printAst(stmt, n+1))
+            for (let limbName in ast.limbs) {
+                if (ast.limbs[limbName].length > 0) {
+                    console.log(indent+limbName)
+                    ast.limbs[limbName].forEach(stmt => printAst(stmt, n+1))
                 }
-            break
-
-        case "operation":
-            newAst = depth === 0
-                ? ast 
-                : {
-                ...ast,
-                operands: ast.operands.map(ast => replace<Type>(type, f, ast, depth)),
             }
     }
+}
 
-    return ast.type === type ? f(ast as AST & { type: Type }) : ast
+/** Asserts this ast represents an operation. */
+export function assertOp(ast: AST, msg: string = "An operation was expected."): asserts ast is OpAST {
+    if (ast.type !== "operation") throwWith(ast.metadata, msg)
+}
+
+/** Asserts this operation ast matches the provided operator. */
+export function assertOpkind(name: string, ast: OpAST, msg: string = `A '${name}' operator was expected.`) {
+    if (ast.operator !== name) throwWith(ast.metadata, msg)
+}
+
+/** Asserts this operation ast has that many arguments. Both endpoints inclusive if a range is provided. */
+export function assertArity(n: arity, ast: OpAST, msg?: string) {
+    let range = toRangeArity(n)
+    if (!between(...range, ast.operands.length)) {
+        throwWith(ast.metadata, msg ?? `Expected between ${range[0]} and ${range[1]} arguments, got ${ast.operands.length}.`)
+    }
+}
+
+/** Asserts this ast is a macro ast. */
+export function assertMacro(ast: AST, msg: string = "A macro was expected."): asserts ast is MacroAST {
+    if (ast.type !== "macro") throwWith(ast.metadata, msg)
+}
+
+/** Asserts this macro ast matches the provided macro name. */
+export function assertMacrokind(name: string, ast: MacroAST, msg: string = `A '${name}' operator was expected.`) {
+    if (ast.name !== name) throwWith(ast.metadata, msg)
+}
+
+/** Asserts this ast is a literal ast. */
+export function assertLiteral(ast: AST, msg: string = "A literal was expected."): asserts ast is LiteralAST {
+    if (ast.type !== "literal") throwWith(ast.metadata, msg)
+}
+
+/** Extracts `lit` out of ```[#name `lit`]``` as a string. */
+export function getLiteralOfName(ast: AST): string {
+    assertOp(ast)
+    assertOpkind("#name", ast)
+    assertArity(1, ast)
+    let inner = ast.operands[0]
+    assertLiteral(inner)
+    return inner.value
+}
+
+/** Extracts `x` out of ```[#number `x`]``` as a number using parseFloat. */
+export function getLiteralOfNumber(ast: AST): number {
+    assertOp(ast)
+    assertOpkind("#number", ast)
+    assertArity(1, ast)
+    let inner = ast.operands[0]
+    assertLiteral(inner)
+    return parseFloat(inner.value)
+}
+
+/** Asserts ast is a literal ast and retrieves its value field. */
+export function getValue(ast: AST): string {
+    assertLiteral(ast)
+    return ast.value
 }
 
 /** 
- * Checks that `ast` is of the correct type and that its passes `check`, then returns it.
- * @param type - The expected type of AST
- * @param ast - The AST to check
- * @param check - An additional check defaulting to `ast => true`
+ * Builds a macro ast out of the provided parameters.
+ * @see MacroAST
  */
-export function expect<Type extends ASTType>(
-    type: Type, 
-    ast: AST, 
-    check: (ast: (AST & { type: Type } )) => boolean = () => true
-): AST & { type: Type } {
-    if (ast.type !== type || !check(ast as AST & { type: Type })) throw ""
-    return ast as AST & { type: Type }
+export function macro(name: string, head: AST[], body: AST[], limbs: Dictionary<AST[]> = {}, metadata: Metadata): MacroAST {
+    return {
+        type: "macro",
+        name,
+        metadata,
+        head,
+        body,
+        limbs
+    }
 }
-
 
 /** 
- * Throws `msg` with a header summarizing `metadata`
- * @param metadata - Info on where the error happened
- * @param msg - The error message
+ * Builds an operation ast out of the provided parameters.
+ * @see OpAST
  */
-export function throwWith(metadata: ASTMetadata, msg: string): never {
-    let { src, excerpt, loc } = metadata
-    let lineNo = [...src.substring(0, loc)].filter(c => c === '\n').length + 1
-    let columnNo = src.substring(0, loc).split("\n").at(-1)!.length+1
-    let excerptFirstLine = excerpt.split("\n")[0]!
-    throw `At (${lineNo}, ${columnNo}) : "${excerptFirstLine}" : \n ${msg}`
-}
+export function operation(operands: AST[], operator: string, metadata: Metadata): OpAST {
+    return {
+        type: "operation",
+        metadata,
+        operator,
+        operands,
+    }
+} 
 
-/**
- * Indicates that this macro/operator is implemented using AST manipulation rather than
- * reducers. Returns a reducer that throws with `msg` if actually called.
- * @errorMsg The error message in the case it's called, defaults to "Internal error."
+/** 
+ * Builds a literal ast out of the provided parameters.
+ * @see LiteralAST
  */
-export function intrinsic(errorMsg: string = "Internal error."): () => never {
-    return () => {
-        throw errorMsg
+export function literal(value: string, metadata: Metadata, ): LiteralAST {
+    return {
+        type: "literal",
+        metadata,
+        value
     }
 }
