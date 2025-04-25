@@ -1,24 +1,56 @@
+import { Dictionary } from "./_util";
 import { AST, literal, LiteralAST, MacroAST, OpAST, } from "./ast"
-import { arity, Dictionary, toRangeArity } from "./_util"
 import { MicroLexer, MicroToken as Token, MicroTokenKind as TokenKind, TokenStream } from "./lexer"
 import { Metadata, throwWith } from "./metadata";
 
 
 
 
+type rangeArity = [number, number]
+type arity = number | rangeArity;
+let toRangeArity = (n: arity): rangeArity => typeof n === "number" ? [n,n] : n
 
+/** An arity equal to [0, Infinity]. */
+export let any: arity = [0, Infinity]
+/** An arity equal to [1, Infinity]. */
+export let oneOrMore: arity = [1, Infinity]
+/** An arity equal to [2, Infinity]. */
+export let twoOrMore: arity = [2, Infinity]
+
+
+/**
+ * The expected syntax for the macro.
+ * - block is the default and imposes no restriction whatsoever,
+ * - inline enforces inline body and limbs,
+ * - half-inline enforces inline limbs.
+ */
 type MacroMode = "block" | "inline" | "half-inline";
-type MacroDeclaration = { name: string; arity: arity; limbs?: string[]; mode?: MacroMode };
-type InternalMacroDeclaration = { arity: [number, number], limbs: string[], mode: MacroMode }
 
+/**
+ * A macro declaration.
+ * @field name - The macro name.
+ * @field arity - The macro arity. Can be of the form n or [n,m], inclusive at both endpoints.
+ * @field limbs - The name of the different limbs in the right order.
+ * @field mode - See MacroMode. Defaults to "block".
+ */
+type MacroDeclaration = { name: string; arity: arity; limbs?: string[]; mode?: MacroMode };
+
+/**
+ * An operato declaration.
+ * @field name - The operator name.
+ * @field arity - The operator arity. Can be of the form n or [n,m], inclusive at both endpoints.
+ */
 type OpDeclaration = { name: string; arity: arity } 
+
+
+type InternalMacroDeclaration = { arity: [number, number], limbs: string[], mode: MacroMode }
 type InternalOpDeclaration = { precedence: number, arity: [number, number] }
+
 
 type ParserConfig = {
     operators: (OpDeclaration[] | OpDeclaration)[],
     macros: MacroDeclaration[],
 }
-
 
 /** An abstract class that parses a specific version of the Micro syntax. */
 export abstract class MicroParser {

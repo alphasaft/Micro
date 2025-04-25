@@ -4,7 +4,8 @@ import { Dictionary } from "./_util"
 
 
 /**
- * A semantic context, i.e the set of macro and operator reducers currently defined along with the according evaluator function.
+ * A semantic context, i.e the set of macro and operator reducers ambiantly defined along with the according evaluator function.
+ * @see Evaluator
  */
 export type Context<T> = {
     $: Evaluator<T>

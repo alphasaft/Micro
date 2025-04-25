@@ -32,7 +32,7 @@ export type OpAST = { metadata: Metadata; type: "operation"; operator: string; o
 export type LiteralAST = { metadata: Metadata; type: "literal"; value: string; }
 
 /** 
- * An AST. Can be a MacroAST, an OPAst, or a LiteralAST.
+ * An AST representing a piece of code. Can be a MacroAST, an OPAst, or a LiteralAST.
  */
 export type AST = MacroAST | OpAST | LiteralAST
 
