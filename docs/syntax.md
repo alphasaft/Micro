@@ -55,20 +55,22 @@ elem #in list;
 [#op a;b;c;...;z]; <=> a #op b #op c #op ... #op z
 
 
-## Micro also allows unary operators in a prefix form :
+## Micro allows unary operators in a prefix form...
 #print 0;
 
+## ...and an operator can be applied to nothing :
+?;        ## OK
 
-## Should you want to apply an operator to nothing (nullary operators, i.e operators taking no operands), 
-## you have to enclose it in square brackets :
-?;        ## No, "Expression expected."
-[?];      ## Yes
-
+## If there's an ambiguity, enclose it in square brackets or in parentheses :
+? || 3 <=> (? (|| 3));  ## Probably not what was intended
+[?] || 3                ## OK
+(?) || 3                ## OK
 
 ## Operator arity (?) is enforced when parsed. So if + is declared with an arity of 2 :
-1+2;    ## Yes
-1+2+3;  ## No
-+1;     ## No
+1+2;    ## OK
+1+2+3;  ## NO
++1;     ## NO
++;      ## NO
 
 
 
@@ -113,7 +115,7 @@ a.b() <=> (a.b)()
 
 
 ## Literals (?) also are, in fact, implicitely generated operators.
-## When a literal is encountered, it's wrapped inside the corresponding operator :
+## When a literal is encountered, it's wrapped as a raw string inside the corresponding operator :
 0 <=> [#number `0`];
 "hi !" <=> [#string `hi !`];
 x <=> [#name `x`];
@@ -157,8 +159,8 @@ loop {
 ## If the body is made of one single statement, you can drop the brackets :
 if (true) doThis();
 
-## Both rules hold at the same time ("inline macro"):
-return x <=> return() { x };
+## Both rules hold at the same time :
+import x <=> import() { x };
 
 ## Beware, parentheses after the macro name are always understood as the argument list. Hence :
 return (0;0)       ## ERROR, '{' or inline body expected.
@@ -181,8 +183,9 @@ macro { stmt }                  ## OK
 macro { stmt1; stmt2 }          ## NO, can't have an inline body.
 macro { stmt; }                 ## NO, can't have a semicolon at the end of a single-expression body.
 macro() stmt                    ## NO, can't have parentheses here.
+macro {}                        ## NO, expression expected.
 myOneArityMacro(hi) stmt        ## OK
-myZeroToOneArityMacro() stmt    ## Ok because arity must be exactly 0 to forbid parentheses.
+myZeroToOneArityMacro() stmt    ## OK because arity must be exactly 0 to forbid parentheses.
 
 ## - half-inline : macro limbs (see next paragraph) must be inline or a single expression 
 ## enclosed in brackets. No restrictions on the body. If arity is 0, parentheses must be dropped.
@@ -232,7 +235,7 @@ function'(`f`;x;y;z) {
 };
 
 ## i.e the name following it is passed as a literal as the first argument to the macro.
-## Notice that said macro is not "function" here, but "function'" : The binding tick is 
+## Notice that said macro is not function here, but function' : The binding tick is 
 ## part of the name of the macro, and :
 
 x = function() { ... };
@@ -247,6 +250,9 @@ function' x() { ... };
 #########################################
 
 ## Here's a sample script that recaps everything we've seen until here :
+
+## import macro with a from limb
+import { display, input } from "io";
 
 ## Bound macro function'
 function' getCommandLineArgs() {
@@ -279,7 +285,7 @@ if ("--plot" #in args) {
 ## else limb, its body being a single if macro
 else if ("--game" #in args) {
 
-    print("Let's play a guessing game !");
+    display("Let's play a guessing game !");
 
     ## Using the silent macro as some kind of object literal, along with a syntactic ':' operator
     let state = { attempts: 0; secret: [? 1;100] };
@@ -290,16 +296,16 @@ else if ("--game" #in args) {
         ## Two macros, when & do, with an arity of 0
         when {
             guess > state.secret -> do {
-                print("It's lower than that !");
+                display("It's lower than that !");
                 ++state.attemps;  ## Remember there is no such things as suffix operators in Micro
             };
             guess < state.secret -> do {
-                print("It's bigger than that !");
+                display("It's bigger than that !");
                 ++state.attemps;
             };
             guess == state.secret -> do {
                 ## + will be applied to the two strings and state.attempts at the same time.
-                print("Congratulations, you won in " + state.attempts + "attempts !");
+                display("Congratulations, you won in " + state.attempts + "attempts !");
                 #exit 0;
             }
         }

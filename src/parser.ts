@@ -75,7 +75,7 @@ export abstract class MicroParser {
      * the order in which the macros are declared doesn't matter.
      * 
      */
-    constructor({ operators, macros }: ParserConfig) { 
+    constructor({ operators, macros }: ParserConfig) {
         this.operators = {}
         for (let i = 0; i<operators.length; i++) {
             let slice = operators[i]
@@ -92,7 +92,7 @@ export abstract class MicroParser {
             this.macros[macro.name] = { arity: toRangeArity(macro.arity), limbs: macro.limbs ?? [], mode: macro.mode ?? "block" }
         }
 
-        this.lexer = new MicroLexer()
+        this.lexer = new MicroLexer
     }
 
     private checkOperatorExists(operator: string, metadata: Metadata) {
@@ -318,13 +318,31 @@ export abstract class MicroParser {
         return this.makeOperation(operator, operands, { src: tokens.src, span: [begin, end] })
     }
 
-    private parseUnaryOperation(tokens: TokenStream): AST {
+    private parseUnaryOrNullaryOperation(tokens: TokenStream): AST {
         let operatorToken = tokens.expect(TokenKind.OPERATOR)
         let operator = operatorToken.value
         let begin = operatorToken.metadata.span[0]
-        let operand = this.parseExpression(tokens, this.operators[operator].precedence)
-        let end = operand.metadata.span[1]
-        return this.makeOperation(operator, [operand], { src: tokens.src, span: [begin, end] })
+        let operands: AST[]
+        let end: number
+
+        switch (tokens.peak().kind) {
+            case TokenKind.OPENING_PAR:
+            case TokenKind.OPENING_BRACKET:
+            case TokenKind.OPENING_CBRACKET:
+            case TokenKind.OPERATOR:
+            case TokenKind.NAME:
+            case TokenKind.NUMBER:
+            case TokenKind.STRING:    
+                let operand = this.parseExpression(tokens, this.operators[operator].precedence)
+                operands = [operand]
+                end = operand.metadata.span[1]
+                break
+            default:
+                operands = []
+                end = operatorToken.metadata.span[1]
+        }
+
+        return this.makeOperation(operator, operands, { src: tokens.src, span: [begin, end] })
     }
     
     private parseExpression(tokens: TokenStream, minPrecedance: number = 0): AST {
@@ -333,8 +351,9 @@ export abstract class MicroParser {
  
         while (true) {
             if (tokens.is(TokenKind.OPERATOR)) {
-                let op = tokens.next().value
+                let op = tokens.peak().value
                 if (this.operators[op].precedence <= minPrecedance) break 
+                tokens.next()
 
                 let currentOp = op
                 let packingOp = op
@@ -374,7 +393,7 @@ export abstract class MicroParser {
             case TokenKind.STRING: return this.parseString(tokens)
             case TokenKind.NAME: return this.parseNameOrMacro(tokens)
             case TokenKind.NUMBER: return this.parseNumber(tokens)
-            case TokenKind.OPERATOR: return this.parseUnaryOperation(tokens)
+            case TokenKind.OPERATOR: return this.parseUnaryOrNullaryOperation(tokens)
             case TokenKind.OPENING_PAR: return this.parseParenthesizedExpression(tokens)
             case TokenKind.OPENING_BRACKET: return this.parseExplicitPack(tokens)
             case TokenKind.OPENING_CBRACKET: return this.parseSilentMacro(tokens)

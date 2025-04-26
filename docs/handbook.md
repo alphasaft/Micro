@@ -7,8 +7,9 @@ The tool itself is written in Typescript, but knowing Javascript is, as per Type
 ## Principle
 
 Implementing a version of the Micro language is pretty straightforward :
-1. You declare the operators and macros in the parser.
-2. You implement said operators and macros in the reducer.
+1. You declare the operators and macros in the parser,
+2. You implement said operators and macros in the reducer,
+3. You optionally add checks to ensure script correctness.
 
 Then you can run whatever Micro script that conforms to the expected syntax. Said syntax is thoroughly described in the Micro syntax reference, so we won't double down on that here ; I suggest you read it first to get a glance at what Micro has to offer, then come back here. Once you're done, let's get started !
 
@@ -257,11 +258,11 @@ lift = literal => ["literal", literal]
 
 so that plain, untyped literal strings do not run freely in our program, and no contract is broken. Here, that's not how we chose to proceed (we only manipulate numbers, so adding a `type` info would be superfluous ; hence, we just return the literal as is, knowing that it will be parsed into `#number` no matter what), but that's something that very often is handy when our language grows bigger.
 
-### A quick word about literals and literal operators
+### Literal operators
 
 Just to mention a simple trick you can implement with the `#name` operator. These are the identifier counterpart to numbers : when `0` is encountered, you get ```#number `0` ``` ; when `myVariable` is encountered, you get ```#name `myVariable` ```. 
 
-Earlier, we wrote `if (0) { ... }` to forbid a block to execute. That works, but it's not very good-looking. We could create a nullary `[#false]` operator, but that does also feel off. However, here's a third option :
+Earlier, we wrote `if (0) { ... }` to forbid a block to execute. That works, but it's not very good-looking. We could create a nullary `#false` operator, but that does also feel off. Besides, things like `#false || #true` would be understood as `#false (|| (true))`. However, here's a third option :
 
 ```js
 nameReducer = ([nameLiteral]) => {
@@ -273,7 +274,12 @@ nameReducer = ([nameLiteral]) => {
 }
 ``` 
 
-Here, default could be anything : throwing, or actually implementing variables with, say, a `HashMap`. What's important is the fact `#name` allows for fine-grained control over identifiers, so that you can actually treat `true`, `false`, or whatever similar keyword-like value really, separately from the rest. That idea of controlling which literals do what can also be put applied to `#number` ; for instance, you could forbid floating point numbers by throwing if a dot is encountered in a `#number` literal.
+That `default` block could be anything : throwing, or actually implementing variables with, say, a `HashMap`. What's important is the fact `#name` allows for fine-grained control over identifiers, so that you can actually treat `true`, `false`, or, say, `null`, separately from the rest. 
+
+Generally speaking, when implementing a feature, you must follow these steps to determine which option suits it the best :
+* If this features controls how a block of code is executed, like `if (...) { ... }`, use a macro,
+* Else, if some kind of special value, like `undefined`, use `#name`,
+* Else, look at how it operates on its constituents. If, when you try to write it as a macro, you find yourself evaluating everything exactly once whenever the macro is ran, use an operator instead ; else, use a macro.
 
 ### Handling more-than-binary operators
 
@@ -290,7 +296,7 @@ import { twoOrMore } from "./micro/parser"
 
 // -- snip --
 
-// twoOrMore is actually just [2, Infinity], but it's provided for the sake of lisibility.
+// twoOrMore is actually just [2, Infinity], but it's provided by Micro for the sake of lisibility.
 { name: "+", arity: twoOrMore }
 ```
 
