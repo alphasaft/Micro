@@ -161,9 +161,35 @@ if (true) doThis();
 return x <=> return() { x };
 
 ## Beware, parentheses after the macro name are always understood as the argument list. Hence :
-return (0;0);       ## ERROR, '{' or inline body expected.
-return() (0;0);     ## Ok
+return (0;0)       ## ERROR, '{' or inline body expected.
+return {(0;0)}     ## OK
 
+
+## You can enforce a specific syntax for a macro by providing a 'mode' flag to the macro declaration (?)
+## That mode can be one of the following : block, inline and half-inline
+
+## - block : no restrictions whatsoever
+macro() { stmt1; stmt2 }    ## OK
+macro { stmt1; stmt2 }      ## OK
+macro() stmt                ## OK
+macro stmt                  ## OK
+
+## - inline : body must be inline or a single expression enclosed in brackets
+## Furthermore, if arity is exactly 0, then parentheses have to be dropped.
+macro stmt                      ## OK
+macro { stmt }                  ## OK
+macro { stmt1; stmt2 }          ## NO, can't have an inline body.
+macro { stmt; }                 ## NO, can't have a semicolon at the end of a single-expression body.
+macro() stmt                    ## NO, can't have parentheses here.
+myOneArityMacro(hi) stmt        ## OK
+myZeroToOneArityMacro() stmt    ## Ok because arity must be exactly 0 to forbid parentheses.
+
+## - half-inline : macro limbs (see next paragraph) must be inline or a single expression 
+## enclosed in brackets. No restrictions on the body. If arity is 0, parentheses must be dropped.
+
+
+## Should you ever need what looks like a zero-length macro, like "break;" or 
+## some 'true' literal, you should consider using #name manipulation (?) or nullary operators instead.
 
 
 #########################################
@@ -171,18 +197,7 @@ return() (0;0);     ## Ok
 #########################################
 
 
-## Using a pair of curly brackets alone is understood as calling 
-## a macro named '' (empty string).
-{}
-
-## Optionnaly, statements can be put inside, which will be the body of that macro.
-{ x;y;z }
-
-## Just like a regular macro, those statements can be any valid expression.
-
-
-
-## Macros also have support for things called limbs :
+## Macros have support for things called limbs :
 if (true) {
     doSomething();      ## The standard macro body
 } else {
@@ -196,6 +211,15 @@ try { } finally { };            ## Ok
 try { } catch { } finally { };  ## Ok
 try { } finally { } catch { };  ## No
 
+
+## Using a pair of curly brackets alone is understood as calling 
+## a macro named '' (empty string).
+{}
+
+## Optionnaly, statements can be put inside, which will be the body of that macro.
+{ x;y;z }
+
+## Just like a regular macro, those statements can be any valid expression.
 
 
 ## Last but not least, if a ' (termed "binding tick") follows a macro name,
@@ -267,7 +291,7 @@ else if ("--game" #in args) {
     while (true) {
         let guess = parseFloat(getInput("Enter a guess :"));
 
-        ## Macros when & do taking no arguments
+        ## Two macros, when & do, with an arity of 0
         when {
             guess > state.secret -> do {
                 print("It's lower than that !");
