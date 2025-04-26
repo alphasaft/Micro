@@ -275,7 +275,7 @@ nameReducer = ([nameLiteral]) => {
 
 Here, default could be anything : throwing, or actually implementing variables with, say, a `HashMap`. What's important is the fact `#name` allows for fine-grained control over identifiers, so that you can actually treat `true`, `false`, or whatever similar keyword-like value really, separately from the rest. That idea of controlling which literals do what can also be put applied to `#number` ; for instance, you could forbid floating point numbers by throwing if a dot is encountered in a `#number` literal.
 
-### Handling ternary operators
+### Handling more-than-binary operators
 
 Let's write a script that adds four zeroes together :
 
@@ -340,8 +340,8 @@ x = { a: 2; b: 3 };
 
 Cool, but not quite right, for several reasons :
 
-* ':' can be used everywhere, but we don't expect that to be legal, nor to actually return a list. What we meant was to make it produce an intermediate syntactic object to be used by the `{}` reducer only.
-* Inside `{}`, any expression is allowed. So `{ 5 }` will just make `Object.fromEntiers` throw an error when reduced, while `{ [a,5] }` will (assuming `#list` is implemented and returns a list) work.
+* `:` can be used everywhere, but we don't expect that to be legal, nor to actually return a list. What we meant was to make it produce an intermediate syntactic object to be used by the `{}` reducer only.
+* Inside `{}`, any expression is allowed. So `{ 5 }` will just make `Object.fromEntiers` throw an error when reduced, while `{ [a;5] }` will (assuming `#list` is implemented and returns a list) work.
 * Lastly, even in `{}`, `:` can be misused : `{ x:(3:2) }` yields the JS object `{ x: [3,2] }`...
 
 We're gonna fix these three at once using AST manipulation and a checker. Let's straight up remove the `:` reducer and rewrite the `{}` one : 
@@ -359,7 +359,7 @@ silentReducer = ({$}, { body }) => {
 }
 ```
 
-A piece of cake : we expect every statement to be of the form 'key: value', i.e an ast of the form ```[: [#name `key`]; value]```, so we extract the key string literal out of `#name` using the built-in function `getLiteralOfName`, then we bind it to the result of evaluating value with `$`. On the other hand, `:` doesn't have an implementation anymore, meaning that every attempt to reduce it will throw an error. Here, since we just kind of pattern match it without trying to invoke its reducer, it will work just fine, but `{ a: (3:2) }` will throw. Now, we still have some problems. `:` can't be misused anymore, yes, but we didn't actually check that it was used at all ! Writing `{ a+5 }` would pattern match `a` with `key` and `5` with `value` just fine. Let's write a checker to correct that. A checker is also a `MicroReducer`, except it isn't intended to return anything. Instead, it just crawls the AST to catch any syntax mistake that wasn't spotted by the parser. 
+A piece of cake : we expect every statement to be of the form `key: value`, i.e an ast of the form ```[: [#name `key`]; value]```, so we extract the key string literal out of `#name` using the built-in function `getLiteralOfName`, then we bind it to the result of evaluating value with `$`. On the other hand, `:` doesn't have an implementation anymore, meaning that every attempt to reduce it will throw an error. Here, since we just kind of pattern match it without trying to invoke its reducer, it will work just fine, but `{ a: (3:2) }` will throw. We still have some problems : `:` can't be misused anymore, yes, but we didn't actually check that it was used at all ! Writing `{ a+5 }` would pattern match `a` with `key` and `5` with `value` just fine. Let's write a checker to correct that. A checker is also a `MicroReducer`, except it isn't intended to return anything. Instead, it just crawls the AST to catch any syntax mistake that wasn't spotted by the parser. 
 
 ```js
 import { MicroChecker } from "./micro/checker";
@@ -368,7 +368,7 @@ import { assertOp, assertOpKind, assertName } from "./micro/ast";
 // MicroChecker subclasses MicroReducer, so the methods names, 
 // semantics, etc, are exactly the same.
 // You can view it as "I check the ast, and return undefined to mean 
-// 'ok, they will be no problem actually reducing this one'".
+// 'ok, they will be no problem actually reducing this one later on'".
 class DemoChecker extends MicroChecker {
 
     colonReducer = () => { throw "':' operator must only be used to describe key-value pairs of an object literal" }
@@ -417,4 +417,4 @@ class DemoRunner extends MicroRunner {
 You can provide multiple checkers if needed ; they'll be run in the provided order, meaning every checker can assume the AST it's checking passed the previous tests. Checkers mainly serve two purposes :
 
 * Split responsabilities. This way, our DemoReducer just... well, reduces.
-* Optimize the checking process. For instance, if you wrote a `for`-loop macro, and enforced the syntax correctness in the `DemoReducer`, it would be checked once per loop, leading to huge overhead. If enforced in the `DemoChecker`, on the other hand, the body is checked only once. This also holds, for instance, if you wanted to add some kind of type system.
+* Optimize the checking process. For instance, if you wrote a `for`-loop macro, and enforced the syntax correctness in the `DemoReducer`, it would be checked once per loop, leading to huge overhead. If enforced in the `DemoChecker`, on the other hand, the body is checked only once. This also holds if you wanted to add some kind of type system.
