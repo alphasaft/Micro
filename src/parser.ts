@@ -20,11 +20,11 @@ export let twoOrMore: arity = [2, Infinity]
 
 /**
  * The expected syntax for the macro.
- * - block is the default and imposes no restriction whatsoever,
+ * - block is the default setting and imposes no restriction whatsoever,
  * - inline enforces inline or one-expression body, as well as inline limbs,
  * - half-inline enforces inline limbs and enables the limbs-first syntax
  */
-type MacroMode = "block" | "inline" | "half-inline";
+type MacroMode = "block" | "inline" | "half-inline" ;
 
 /**
  * A macro declaration.

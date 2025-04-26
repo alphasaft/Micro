@@ -95,7 +95,7 @@ f(x) <=> [#call f;x];
 f() <=> [#call f];
 
 ## ...and #index.
-array[0;10] <=> [#index array;10];
+array[0;10] <=> [#index array;0;10];
 array[0] <=> [#index array;0] <=> array #index 0;
 array[] <=> [#index array];
 
@@ -186,10 +186,6 @@ myZeroToOneArityMacro() stmt    ## Ok because arity must be exactly 0 to forbid 
 
 ## - half-inline : macro limbs (see next paragraph) must be inline or a single expression 
 ## enclosed in brackets. No restrictions on the body. If arity is 0, parentheses must be dropped.
-
-
-## Should you ever need what looks like a zero-length macro, like "break;" or 
-## some 'true' literal, you should consider using #name manipulation (?) or nullary operators instead.
 
 
 #########################################
