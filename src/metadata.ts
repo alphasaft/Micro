@@ -2,7 +2,7 @@
 
 /** Data relative to the Micro source code from which the object originates.
  * @field src - The integrality of the source code
- * @field span - The starting and ending points of the excerpt that yielded the object.
+ * @field span - The starting and ending points of the excerpt that produced the object.
  */
 export type Metadata = { src: string; span: [number, number] };
 
@@ -25,8 +25,8 @@ export function throwWith(metadata: Metadata, msg: string): never {
     let excerpt = src.substring(i,j)
     let shortExcerpt = 
         excerpt.includes('\n') ? excerpt.split('\n')[0] 
-        : excerpt.length <= 30 ? excerpt 
-        : excerpt.substring(0, 30) + " ..."
+        : excerpt.length > 30 ? excerpt.substring(0, 30) + " ..."
+        : excerpt
         
     throw `At (${lineNo}, ${columnNo}) : '${shortExcerpt}' : \n ${msg}`
 }

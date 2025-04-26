@@ -1,5 +1,5 @@
 import { Metadata, throwWith } from "./metadata";
-import { arity, between, Dictionary, toRangeArity } from "./_util";
+import { between, Dictionary } from "./_util";
 
 
 /** 
@@ -37,126 +37,118 @@ export type LiteralAST = { metadata: Metadata; type: "literal"; value: string; }
 export type AST = MacroAST | OpAST | LiteralAST
 
 
-/** Utility function provided for debuging purposes, pretty-printing ast with n spaces for indent. */
-export function printAst(ast: AST, n = 0) {
-    let indent = " ".repeat(n*4)
-    switch (ast.type) {
-        case "literal": 
-            console.log(indent + "`"+ast.value+"`")
-            break
+/** Utility function provided for debuging purposes, pretty-printing ast with n (2 by default) spaces for indent. */
+export function printAst(ast: AST, n = 2) {
+    function _printAst(ast: AST, d = 0) {
+        let indent = " ".repeat(d*n)
+        switch (ast.type) {
+            case "literal": 
+                console.log(indent + "`"+ast.value+"`")
+                break
 
-        case "operation": 
-            console.log(indent+ast.operator)
-            ast.operands.map(op => printAst(op, n+1))
-            break
+            case "operation": 
+                console.log(indent+ast.operator)
+                ast.operands.map(op => _printAst(op, d+1))
+                break
 
-        case "macro":
-            console.log(indent+ast.name+"(...)")
-            ast.body.forEach(stmt => printAst(stmt, n+1))
-            for (let limbName in ast.limbs) {
-                if (ast.limbs[limbName].length > 0) {
-                    console.log(indent+limbName)
-                    ast.limbs[limbName].forEach(stmt => printAst(stmt, n+1))
+            case "macro":
+                console.log(indent+ast.name+"(...)")
+                ast.body.forEach(stmt => _printAst(stmt, d+1))
+                for (let limbName in ast.limbs) {
+                    if (ast.limbs[limbName].length > 0) {
+                        console.log(indent+limbName)
+                        ast.limbs[limbName].forEach(stmt => _printAst(stmt, d+1))
+                    }
                 }
-            }
+        }
     }
+
+    _printAst(ast, 0)
 }
 
-/** Asserts this ast represents an operation. */
+/** Asserts this ast represents an operation, throws otherwise with msg. */
 export function assertOp(ast: AST, msg: string = "An operation was expected."): asserts ast is OpAST {
     if (ast.type !== "operation") throwWith(ast.metadata, msg)
 }
 
-/** Asserts this operation ast matches the provided operator. */
-export function assertOpkind(name: string, ast: OpAST, msg: string = `A '${name}' operator was expected.`) {
+/** Asserts this operation ast matches the provided operator, throws otherwise with msg. */
+export function assertOpKind(ast: OpAST, name: string, msg: string = `A '${name}' operator was expected.`) {
     if (ast.operator !== name) throwWith(ast.metadata, msg)
 }
 
-/** Asserts this operation ast has that many arguments. Both endpoints inclusive if a range is provided. */
-export function assertArity(n: arity, ast: OpAST, msg?: string) {
-    let range = toRangeArity(n)
+/** Asserts this operation ast has that many arguments, throws otherwise with msg. Both endpoints inclusive if a range is provided. */
+export function assertArity(ast: OpAST, n: number | [number, number], msg?: string) {
+    let range: [number, number] = typeof n === "number" ? [n,n] : n 
     if (!between(...range, ast.operands.length)) {
         throwWith(ast.metadata, msg ?? `Expected between ${range[0]} and ${range[1]} arguments, got ${ast.operands.length}.`)
     }
 }
 
-/** Asserts this ast is a macro ast. */
+/** Asserts this ast is a macro ast, throws otherwise with msg. */
 export function assertMacro(ast: AST, msg: string = "A macro was expected."): asserts ast is MacroAST {
     if (ast.type !== "macro") throwWith(ast.metadata, msg)
 }
 
-/** Asserts this macro ast matches the provided macro name. */
-export function assertMacrokind(name: string, ast: MacroAST, msg: string = `A '${name}' operator was expected.`) {
+/** Asserts this macro ast matches the provided macro name, throws otherwise with msg. */
+export function assertMacrokind(ast: MacroAST, name: string, msg: string = `A '${name}' operator was expected.`) {
     if (ast.name !== name) throwWith(ast.metadata, msg)
 }
 
-/** Asserts this ast is a literal ast. */
+/** Asserts this ast is a literal ast, throws otherwise with msg. */
 export function assertLiteral(ast: AST, msg: string = "A literal was expected."): asserts ast is LiteralAST {
     if (ast.type !== "literal") throwWith(ast.metadata, msg)
+}
+
+/** Asserts this ast is a '#name' operator, throws otherwise with msg. */
+export function assertName(ast: AST): asserts ast is OpAST {
+    assertOp(ast)
+    assertOpKind(ast, "#name")
+}
+
+/** Asserts this ast is a '#number' operator, throws otherwise with msg. */
+export function assertNumber(ast: AST): asserts ast is OpAST {
+    assertOp(ast)
+    assertOpKind(ast, "#number")
+}
+
+/** Asserts this ast is a '#string' operator, throws otherwise with msg. */
+export function assertString(ast: AST): asserts ast is OpAST {
+    assertOp(ast)
+    assertOpKind(ast, "#string")
 }
 
 /** Extracts `lit` out of ```[#name `lit`]``` as a string. */
 export function getLiteralOfName(ast: AST): string {
     assertOp(ast)
-    assertOpkind("#name", ast)
-    assertArity(1, ast)
+    assertOpKind(ast, "#name")
+    assertArity(ast, 1)
     let inner = ast.operands[0]
     assertLiteral(inner)
     return inner.value
 }
 
-/** Extracts `x` out of ```[#number `x`]``` as a number using parseFloat. */
+/** Extracts `n` out of ```[#number `n`]``` as a number using parseFloat. */
 export function getLiteralOfNumber(ast: AST): number {
     assertOp(ast)
-    assertOpkind("#number", ast)
-    assertArity(1, ast)
+    assertOpKind(ast, "#number")
+    assertArity(ast, 1)
     let inner = ast.operands[0]
     assertLiteral(inner)
     return parseFloat(inner.value)
+}
+
+/** Extracts `s` out of ```[#string `s`]``` as a string. */
+export function getLiteralOfString(ast: AST): string {
+    assertOp(ast)
+    assertOpKind(ast, "#string")
+    assertArity(ast, 1)
+    let inner = ast.operands[0]
+    assertLiteral(inner)
+    return inner.value
 }
 
 /** Asserts ast is a literal ast and retrieves its value field. */
 export function getValue(ast: AST): string {
     assertLiteral(ast)
     return ast.value
-}
-
-/** 
- * Builds a macro ast out of the provided parameters.
- * @see MacroAST
- */
-export function macro(name: string, head: AST[], body: AST[], limbs: Dictionary<AST[]> = {}, metadata: Metadata): MacroAST {
-    return {
-        type: "macro",
-        name,
-        metadata,
-        head,
-        body,
-        limbs
-    }
-}
-
-/** 
- * Builds an operation ast out of the provided parameters.
- * @see OpAST
- */
-export function operation(operands: AST[], operator: string, metadata: Metadata): OpAST {
-    return {
-        type: "operation",
-        metadata,
-        operator,
-        operands,
-    }
-} 
-
-/** 
- * Builds a literal ast out of the provided parameters.
- * @see LiteralAST
- */
-export function literal(value: string, metadata: Metadata, ): LiteralAST {
-    return {
-        type: "literal",
-        metadata,
-        value
-    }
 }

@@ -190,11 +190,11 @@ if (true) {
 };
 
 ## Limbs must always be in the right order, but some can be omitted. 
-## For instance, if the macro is declared as try/catch/finally :
+## For instance, if the macro is declared as try with limbs catch and finally :
 try { };                        ## Ok
-try { } finally { }             ## Ok
-try { } catch { } finally { }   ## Ok
-try { } finally { } catch { }   ## No
+try { } finally { };            ## Ok
+try { } catch { } finally { };  ## Ok
+try { } finally { } catch { };  ## No
 
 
 
@@ -209,7 +209,7 @@ function' f(x; y; z) {
 
 function'(`f`;x;y;z) { 
     ... 
-}
+};
 
 ## i.e the name following it is passed as a literal as the first argument to the macro.
 ## Notice that said macro is not "function" here, but "function'" : The binding tick is 
@@ -226,6 +226,7 @@ function' x() { ... };
 ###               RECAP               ###
 #########################################
 
+## Here's a sample script that recaps everything we've seen until here :
 
 ## Bound macro function'
 function' getCommandLineArgs() {
@@ -264,7 +265,6 @@ else if ("--game" #in args) {
     let state = { attempts: 0; secret: [? 1;100] };
 
     while (true) {
-        ## Converting...
         let guess = parseFloat(getInput("Enter a guess :"));
 
         ## Macros when & do taking no arguments

@@ -52,7 +52,7 @@ type ParserConfig = {
     macros: MacroDeclaration[],
 }
 
-/** An abstract class that parses a specific version of the Micro syntax. */
+/** An abstract class that parses a specific version of the Micro language. */
 export abstract class MicroParser {
     static readonly numberOp = "#number"
     static readonly stringOp = "#string"
@@ -376,7 +376,7 @@ export abstract class MicroParser {
             name: "<script>",
             metadata: { src, span: [0, src.length-1] },
             body,
-            head: scriptArgs.map(arg => literal(arg, { src, span: [0,0] })),
+            head: scriptArgs.map(arg => { return { type: "literal", value: arg, metadata: { src, span: [0,0] } } }),
             limbs: {}
         }
     }
