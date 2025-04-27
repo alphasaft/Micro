@@ -34,6 +34,9 @@ command.bind(myGrepCallback)
 While here's a Micro script that could describe that :
 
 ```
+extern (myGrepCallback) from js;
+
+
 command' mygrep {
     argument ("<regexp>") {
         #expectedvaluetype regexp;
@@ -55,8 +58,8 @@ command' mygrep {
         #desc "Enters debug mode."
     }
 
-    bind (#js myGrepCallback);
+    bind myGrepCallback;
 } 
 ```
 
-Micro really shines whenever there is a need for an external user to write or read your code, because it allows for far more user-friendly, maintainable formats, while retaining every framework-related specifities.
+Easily readable, concise and clear, while also decoupled from the actual javascript implementation. Micro really shines whenever there is a need for an external user to write or read your code, because it allows for far more user-friendly, maintainable formats, while retaining every framework-related specifities. To get a glance of Micro's syntax, read the syntax reference in `docs/syntax.md`, and then the handbook to get started !
