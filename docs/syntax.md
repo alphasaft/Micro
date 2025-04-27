@@ -126,13 +126,19 @@ x <=> [#name `x`];
 #########################################
 
 
-## Any part of an expression can be replaced by a macro call. The syntax is the following :
-macro(arg1; ...; argn) {
+## Macros are, in a sense, the syntactical heart of Micro.
+## They are very versatile, and come in two flavors :
+
+## A block macro is, as its name suggest, a block of code, wrapped inside 
+## a pair of brackets. The syntax is the following :
+macroName(arg1; ...; argn) {
     stmt1;
     ...;
     stmtn;
 };
-## Where argi as well as stmti can be any valid expression, including other macros.
+
+## stmti and argi must be valid expressions. The argument list is often called
+## the head, while the statement list is called the body.
 
 ## Line breaks and spaces are irrelevant, so this is fine as well :
 macro(
@@ -141,62 +147,9 @@ macro(
     argn;
 ) { stmt1; ...; stmtn };
 
-## The argument list is called the head, the statement list the body.
 
-
-## Macros can be used in conjunction with standard operators :
-1 + compute(...) { ... };       ## Applying + to 1 and the result of the compute macro.
-x #in computeList(...) { ... }  ## Same with the #in operator.
-
-
-
-## Macro syntax can be a little bit lighter than that.
-## If no argument is provided, the parentheses are optional :
-loop {
-    ...
-}
-
-## If the body is made of one single statement, you can drop the brackets :
-if (true) doThis();
-
-## Both rules hold at the same time :
-import x <=> import() { x };
-
-## Beware, parentheses after the macro name are always understood as the argument list. Hence :
-return (0;0)       ## ERROR, '{' or inline body expected.
-return {(0;0)}     ## OK
-
-
-## You can enforce a specific syntax for a macro by providing a 'mode' flag to the macro declaration (?)
-## That mode can be one of the following : block, inline and half-inline
-
-## - block : no restrictions whatsoever
-macro() { stmt1; stmt2 }    ## OK
-macro { stmt1; stmt2 }      ## OK
-macro() stmt                ## OK
-macro stmt                  ## OK
-
-## - inline : body must be inline or a single expression enclosed in brackets
-## Furthermore, if arity is exactly 0, then parentheses have to be dropped.
-macro stmt                      ## OK
-macro { stmt }                  ## OK
-macro { stmt1; stmt2 }          ## NO, can't have an inline body.
-macro { stmt; }                 ## NO, can't have a semicolon at the end of a single-expression body.
-macro() stmt                    ## NO, can't have parentheses here.
-macro {}                        ## NO, expression expected.
-myOneArityMacro(hi) stmt        ## OK
-myZeroToOneArityMacro() stmt    ## OK because arity must be exactly 0 to forbid parentheses.
-
-## - half-inline : macro limbs (see next paragraph) must be inline or a single expression 
-## enclosed in brackets. No restrictions on the body. If arity is 0, parentheses must be dropped.
-
-
-#########################################
-###        SPECIAL MACRO FORMS        ###
-#########################################
-
-
-## Macros have support for things called limbs :
+## Additionnaly, a macro can be followed by one or more limbs.
+## These are additionnal blocks of code preceded by a word :
 if (true) {
     doSomething();      ## The standard macro body
 } else {
@@ -205,23 +158,78 @@ if (true) {
 
 ## Limbs must always be in the right order, but some can be omitted. 
 ## For instance, if the macro is declared as try with limbs catch and finally :
-try { };                        ## Ok
-try { } finally { };            ## Ok
-try { } catch { } finally { };  ## Ok
-try { } finally { } catch { };  ## No
+try { };                        ## OK
+try { } finally { };            ## OK
+try { } catch { } finally { };  ## OK
+try { } finally { } catch { };  ## NO
 
 
-## Using a pair of curly brackets alone is understood as calling 
-## a macro named '' (empty string).
-{}
+## If the head of a block macro is empty, then the parentheses are optional :
+loop {
+    ...
+}
 
-## Optionnaly, statements can be put inside, which will be the body of that macro.
-{ x;y;z }
+## If its body is made of one single statement, you can drop the brackets :
+if (true) doThis() <=> if(true) { doThis() };
 
-## Just like a regular macro, those statements can be any valid expression.
+## However, it is not legal to drop the {} altogether if the body is empty
+if (false) {};  ## OK
+if (false);     ## NO
+
+## Same goes for the limbs :
+if (true) { ... } else #throw "ERROR !";    ## OK
+if (true) { ... } else {};                  ## OK
+if (true) { ... } else;                     ## NO
 
 
-## Last but not least, if a ' (termed "binding tick") follows a macro name,
+## The second macro kind are inline macros, so called because they almost always
+## are one-liners, and are much shorter than their block counterparts.
+## They don't have a body, only a head and some limbs, which must 
+## be a word followed by a single expression, with or without {} surrounding it
+## Just like with block macros, the parentheses around the head can be removed
+## if said head is empty.
+return (0)                      ## OK
+return (true; false);           ## OK
+import (x) from "file";         ## OK
+import (y) from { "file" };     ## OK
+break;                          ## OK
+return (0) { ... };             ## NO, an inline macro can't have a body
+return (0) {};                  ## NO, for the same reason
+import (z) from { "file"; };    ## NO, semicolon is not allowed here
+import (z) from { "f";"g" };    ## NO, it must be a single expression
+break at "external-loop";       ## OK, empty head and an 'at' limb
+
+
+## Always remember that macros are valid expression.
+## They can be operated upon, nested, and so on
+let n = m - await (costlyComputation);
+if (true) {
+    if (false) print("This will never execute")
+    else if (false) print("Nor will that")
+    else {
+        print("Hello,");
+        print("world !");
+    }
+};
+
+
+
+#########################################
+###        SPECIAL MACRO FORMS        ###
+#########################################
+
+
+## Using a pair of curly brackets alone is understood as invoking
+## a macro named '' (empty string), which we call the silent macro.
+{};
+
+## Just like a normal block macro, statements can be put inside.
+## These will form the body of the macro
+{ x;y;z };
+
+
+
+## If a ' (termed "binding tick") follows a macro name,
 ## it triggers the bound macro behavior :
 
 function' f(x; y; z) { 
@@ -251,8 +259,8 @@ function' x() { ... };
 
 ## Here's a sample script that recaps everything we've seen until here :
 
-## import macro with a from limb
-import { display, input } from "io";
+## inline import macro with a from limb
+import (display, input) from "io";
 
 ## Bound macro function'
 function' getCommandLineArgs() {
@@ -320,8 +328,8 @@ else if ("--game" #in args) {
 
 
 movement' jump(height; duration) {
-    [#moveAlong (0;height/2); duration/2] ~ [#quickStart];  ## Adding #quickStart for non-linear movement
-    [#moveAlong (0;-height/2); duration/2] ~ [#slowStart];  ## Same here
+    [#moveAlong (0;height/2); duration/2] ~ quickStart;  ## Adding #quickStart for non-linear movement
+    [#moveAlong (0;-height/2); duration/2] ~ slowStart;  ## Same here
 }
 
 animation' main {

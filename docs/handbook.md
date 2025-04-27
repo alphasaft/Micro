@@ -44,10 +44,9 @@ The operator declarations are the thing passed under the `operator` field. It's 
 - Every one of them has and arity of 2, meaning they take two operands to work with. 
 - Because of how high they stand in the outer list relative to each other, `*` and `/` have the same precedence, which is higher that the precedence of `+` and `-`.
 
-Concretely, this means that those four will be the only authorized operators and that the parser will check that each time they appear in a script, they are being passed exactly two operands. Macro declarations work the exact same way : Here, we declare an `if` macro, that takes in one single argument, and allows an `else` limb to be appened to it. 
+Concretely, this means that those four will be the only authorized operators and that the parser will check that each time they appear in a script, they are being passed exactly two operands. Macro declarations work the same way : Here, we declare an `if` macro, that takes in one single argument, and allows an `else` limb to be appended to it. Optionnally, we can add `mode: 'block'` in the declaration to specify it's a block macro (but that's the default value), or `mode: 'inline'` if we want to declare an inline macro.
 
-Back to `#number`, now. As you might have already seen in the syntax reference, `#number` is a special operator that Micro uses to handle number literals.
-It isn't intended to be called explicitely in-script, so its relative precedence doesn't really matter. By convention, it's put at the top
+Back to `#number`, now. As you might have already seen in the syntax reference, `#number` is a special operator that Micro uses to handle number literals. It isn't intended to be called explicitely in-script, so its relative precedence doesn't really matter. By convention, it's put at the top
 of the operator declarations, along with `#string` and `#name` if present. If one of `#number`, `#name` or `#string` isn't present, then the corresponding literal type is disabled and its use forbidden in-script.
 
 You now can parse whatever (well-formed) script you want using `parser.parse(src)` :
@@ -63,7 +62,7 @@ let ast = parser.parse(`
 `)
 ```
 
-We'll import `printAST` to pretty-print the result of our parsing :
+We'll import `printAst` to pretty-print the result of our parsing :
 
 ```js
 import { printAst } from "./micro/ast"
@@ -103,11 +102,11 @@ The output should be something like this :
 ```
 
 What you're seeing here is an Abstract Syntactic Tree (or AST for short). It's an internal representation of the script that was just
-parsed. It doesn't do much on its own, but Micro provides the tools we need.
+parsed. It doesn't do much on its own, but Micro provides the tools we need to reduce it to a usable value.
 
 ## Reducing an AST
 
-Let's now import the `MicroReducer` class, and also subclass it :
+Let's import the `MicroReducer` class, and also subclass it :
 
 ```js
 class DemoReducer extends MicroReducer {
@@ -276,10 +275,6 @@ nameReducer = ([nameLiteral]) => {
 
 That `default` block could be anything : throwing, or actually implementing variables with, say, a `HashMap`. What's important is the fact `#name` allows for fine-grained control over identifiers, so that you can actually treat `true`, `false`, or, say, `null`, separately from the rest. 
 
-Generally speaking, when implementing a feature, you must follow these steps to determine which option suits it the best :
-* If this features controls how a block of code is executed, like `if (...) { ... }`, use a macro,
-* Else, if some kind of special value, like `undefined`, use `#name`,
-* Else, look at how it operates on its constituents. If, when you try to write it as a macro, you find yourself evaluating everything exactly once whenever the macro is ran, use an operator instead ; else, use a macro.
 
 ### Handling more-than-binary operators
 
@@ -365,17 +360,19 @@ silentReducer = ({$}, { body }) => {
 }
 ```
 
-A piece of cake : we expect every statement to be of the form `key: value`, i.e an ast of the form ```[: [#name `key`]; value]```, so we extract the key string literal out of `#name` using the built-in function `getLiteralOfName`, then we bind it to the result of evaluating value with `$`. On the other hand, `:` doesn't have an implementation anymore, meaning that every attempt to reduce it will throw an error. Here, since we just kind of pattern match it without trying to invoke its reducer, it will work just fine, but `{ a: (3:2) }` will throw. We still have some problems : `:` can't be misused anymore, yes, but we didn't actually check that it was used at all ! Writing `{ a+5 }` would pattern match `a` with `key` and `5` with `value` just fine. Let's write a checker to correct that. A checker is also a `MicroReducer`, except it isn't intended to return anything. Instead, it just crawls the AST to catch any syntax mistake that wasn't spotted by the parser. 
+A piece of cake : we expect every statement to be of the form `key: value`, i.e an ast of the form ```[: [#name `key`]; value]```, so we extract the key string literal out of `#name` using the built-in function `getLiteralOfName`, then we bind it to the result of evaluating value with `$`. On the other hand, `:` doesn't have an implementation anymore, meaning that every attempt to reduce it will throw an error. Here, since we just kind of pattern match it without trying to invoke its reducer, it will work just fine, but `{ a: (3:2) }` will throw. We still have some problems : `:` can't be misused anymore, yes, but we didn't actually check that it was used at all ! Writing `{ a+5 }` would pattern match `a` with `key` and `5` with `value` just fine. Let's write a checker to correct that. 
+
+A checker is also a `MicroReducer`, that takes on a similar form :
 
 ```js
-import { MicroChecker } from "./micro/checker";
+import { opCheck, macroCheck, liftCheck } from "./micro/reducer";
 import { assertOp, assertOpKind, assertName } from "./micro/ast";
 
-// MicroChecker subclasses MicroReducer, so the methods names, 
-// semantics, etc, are exactly the same.
-// You can view it as "I check the ast, and return undefined to mean 
-// 'ok, they will be no problem actually reducing this one later on'".
-class DemoChecker extends MicroChecker {
+
+class DemoChecker extends MicroReducer {
+    lift = liftCheck
+    defaultOpReducer = opCheck
+    defaultMacroReducer = macroCheck
 
     colonReducer = () => { throw "':' operator must only be used to describe key-value pairs of an object literal" }
 
@@ -399,16 +396,22 @@ class DemoChecker extends MicroChecker {
         }
 
         for (let stmt of body) {
-            // $, in this context, means 'check', not 'evaluate'
             $(stmt, opReducers, macroReducers)
         }
     }
 }
 ```
 
-And done ! What we're doing is pretty straightforward. Just like in our `DemoReducer`, we have to pass the checkers we want to use to `$`. Scoping rules apply as usual. Here, we tell that, no matter what, calling `:`'s reducer (i.e, viewing `a:b` as a true expression) isn't valid. We also proceed to check that every statement of a `{}` macro is made out of a `:` operation, with two operands : `key`, that has to be a `#name`, and `value`, which we check using `$` and hence has to be a valid expression. By doing so, we ensure that no operator or macro was misused, meaning the `silentReducer` we implemented earlier in our `DemoReducer` can sleep on both ears and just assume the syntax of its statements is correct while reducing them. 
+Here, `$` does what it always did : it applies the corresponding reducers to the `AST`s we're passing to it. But in that case, our reducers don't actually return anything : their mission is to check no syntax error has sneaked in. Hence, when writing a `Checker`, you can read out loud `$` as 'check' instead of 'evaluated'. The `MicroRunner` itself will just ignore the result of reducing an ast with a checker.
 
-Note that we didn't have to implement any checkers that we didn't need : the default behavior for an operator in a `MicroChecker` is to check every operand, for a macro it's to check the head, the body and the limbs in that order. Also, recall that an operator in a `MicroReducer` evaluates every argument before passing them to the actual reducer ; similarly, in a `MicroChecker`, every operand to an operator is checked before actually checking the validity of the operation itself if a checker is provided, and that behavior cannot be overriden.
+What we're doing is pretty straightforward. Just like in our `DemoReducer`, we have to pass the checkers we want to use to `$`. Scoping rules apply as usual. Here, we tell that, no matter what, calling `:`'s reducer (i.e, viewing `a:b` as a true expression) isn't valid. We also proceed to check that every statement of a `{}` macro is made out of a `:` operation, with two operands : `key`, that has to be a `#name`, and `value`, which we check using `$` and hence has to be a valid expression. By doing so, we ensure that no operator or macro was misused, meaning the `silentReducer` we implemented earlier in our `DemoReducer` can sleep on both ears and just assume the syntax of its statements is correct while reducing them. 
+
+`defaultOpReducer` and `defaultMacroReducer`, as their name suggests, are the default reducers a `MicroReducer` uses when none is provided for a given macro or opertor. Here, we use the built-in `checkMacro`, `checkOp`, `checkLiteral`, whose behavior is respectively to :
+* Check that the head, body and limbs are all made of valid expressions, in that order.
+* Check that the operands of the operator are all valid expressions.
+* Do nothing. A literal doesn't really have to be checked for syntax errors, so `checkLiteral` is actually `() => {}`.
+
+As in any `MicroReducer`, your reducers can actually return things if they want to. For example, if you're implementing a typing system of some sort, they could return the type that the expression will have at runtime. Also, as in any `MicroReducer` too, operator reducers always check their arguments before handing them to you ; if your reducers do not return anything, then your operator will be handed `undefined` values. Indeed, operators should not (and can not, by design) mess with the `AST`s themselves, so they shouldn't need to know the syntax of their operands ; knowing they are syntactically valid should be enough to determine the validity of the expression itself. If you're implementing a type system, on the other hand, they will be handed the types of their operands (because that's what the reducers would return), which, once again, should be enough to determine whether or not the operation is correctly typed.
 
 Last but not least, we have to specify to our `DemoRunner` that we want to use that checker :
 
@@ -423,4 +426,4 @@ class DemoRunner extends MicroRunner {
 You can provide multiple checkers if needed ; they'll be run in the provided order, meaning every checker can assume the AST it's checking passed the previous tests. Checkers mainly serve two purposes :
 
 * Split responsabilities. This way, our DemoReducer just... well, reduces.
-* Optimize the checking process. For instance, if you wrote a `for`-loop macro, and enforced the syntax correctness in the `DemoReducer`, it would be checked once per loop, leading to huge overhead. If enforced in the `DemoChecker`, on the other hand, the body is checked only once. This also holds if you wanted to add some kind of type system.
+* Optimize the checking process. For instance, if you wrote a `for`-loop macro, and enforced the syntax correctness in the `DemoReducer`, it would be checked once per loop, leading to huge overhead. If enforced in the `DemoChecker`, on the other hand, the body is checked only once.

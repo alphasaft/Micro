@@ -19,6 +19,21 @@ export enum MicroTokenKind {
 
 export type MicroToken = { kind: MicroTokenKind, value: string, metadata: Metadata }
 
+export function canStartExpression(token: MicroToken) {
+    switch (token.kind) {
+        case MicroTokenKind.OPENING_PAR:
+        case MicroTokenKind.OPENING_BRACKET:
+        case MicroTokenKind.OPENING_CBRACKET:
+        case MicroTokenKind.OPERATOR:
+        case MicroTokenKind.NAME:
+        case MicroTokenKind.NUMBER:
+        case MicroTokenKind.STRING:
+            return true
+        default:
+            return false
+    }
+}
+
 export class TokenStream {
     private i: number
 

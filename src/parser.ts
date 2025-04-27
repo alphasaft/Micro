@@ -1,6 +1,6 @@
 import { Dictionary } from "./_util";
 import { AST, LiteralAST, MacroAST, OpAST, } from "./ast"
-import { MicroLexer, MicroToken as Token, MicroTokenKind as TokenKind, TokenStream } from "./lexer"
+import { MicroLexer, MicroToken as Token, MicroTokenKind as TokenKind, TokenStream, canStartExpression } from "./lexer"
 import { Metadata, throwWith } from "./metadata";
 
 
@@ -19,12 +19,9 @@ export let twoOrMore: arity = [2, Infinity]
 
 
 /**
- * The expected syntax for the macro.
- * - block is the default setting and imposes no restriction whatsoever,
- * - inline enforces inline or one-expression body, as well as inline limbs,
- * - half-inline enforces inline limbs and enables the limbs-first syntax
+ * The expected syntax for the macro. See the syntax reference for more details.
  */
-type MacroMode = "block" | "inline" | "half-inline" ;
+type MacroMode = "block" | "inline";
 
 /**
  * A macro declaration.
@@ -140,7 +137,6 @@ export abstract class MicroParser {
         if (!limbs.includes(limb)) throwWith(metadata, `Macro '${macro}' doesn't accept a limb called ${limb}.`)
     }
 
-
     private makeLiteral(token: Token): LiteralAST {
         return { type: "literal", value: token.value, metadata: token.metadata }
     }
@@ -155,7 +151,12 @@ export abstract class MicroParser {
         while (true) {
             if (tokens.is(end)) break
             sequence.push(this.parseExpression(tokens))
-            if (tokens.is(TokenKind.SEMICOLON)) tokens.next()
+            if (tokens.is(TokenKind.SEMICOLON)) {
+                tokens.next()
+                if (tokens.is(end)) break
+            }
+            else if (tokens.is(end)) break
+            else throwWith(tokens.peak().metadata, "Semicolon expected.")
         }
 
         return sequence
@@ -186,10 +187,14 @@ export abstract class MicroParser {
     private parseMacro(nameToken: Token, tokens: TokenStream): AST {
         let name = nameToken.value
         let binding = tokens.is(TokenKind.TICK) ? this.parseMacroBinding(tokens) : null
-        if (binding) name += "'"
-        let macroDeclaration = this.macros[name]
+        if (binding) { 
+            name += "'"
+            this.checkMacroExists(name, nameToken.metadata)
+        }
 
-        let [head, headMeatadata] = this.parseMacroHead(tokens, macroDeclaration); if (binding !== null) head = [binding, ...head]
+        let macroDeclaration = this.macros[name]
+        let [head, headMeatadata] = this.parseMacroHead(tokens, macroDeclaration)
+        if (binding !== null) head = [binding, ...head]
         this.checkMacroArity(headMeatadata, name, head.length)
         let [body, _] = this.parseMacroBody(tokens, macroDeclaration)
         let [limbs, limbsMetadata] = this.parseMacroLimbs(tokens, name, macroDeclaration)
@@ -210,13 +215,8 @@ export abstract class MicroParser {
         return this.makeLiteral(boundTo)
     }
 
-    private parseMacroHead(tokens: TokenStream, macroDeclaration: InternalMacroDeclaration): [AST[], Metadata] {
+    private parseMacroHead(tokens: TokenStream, _macroDeclaration: InternalMacroDeclaration): [AST[], Metadata] {
         if (tokens.is(TokenKind.OPENING_PAR)) {
-            if (
-                (macroDeclaration.mode === "inline" || macroDeclaration.mode === "half-inline")
-                && macroDeclaration.arity[0] === 0 && macroDeclaration.arity[1] === 0
-            ) throwWith(tokens.peak().metadata, "Parentheses are forbidden here.")
-
             return this.parseEnclosedExpressionSequence(TokenKind.OPENING_PAR, TokenKind.CLOSING_PAR, tokens)
         } else {
             return [[], { src: tokens.src, span: [tokens.loc(), tokens.loc()] }]
@@ -224,20 +224,21 @@ export abstract class MicroParser {
     }
 
     private parseMacroBody(tokens: TokenStream, dec: InternalMacroDeclaration): [AST[], Metadata] {
-        if (tokens.is(TokenKind.OPENING_CBRACKET)) {
-            if (dec.mode === "inline") {
-                let begin = tokens.next().metadata.span[0]
-                if (tokens.is(TokenKind.CLOSING_CBRACKET)) throwWith(tokens.peak().metadata, "A one-expression body can't be empty.")
-                let expr = this.parseExpression(tokens)
-                if (tokens.is(TokenKind.SEMICOLON)) throwWith(tokens.peak().metadata, "A one-expression body can't include semicolons.")
-                let end = tokens.expect(TokenKind.CLOSING_CBRACKET).metadata.span[1]
-                return [[expr], { src: tokens.src, span: [begin, end] }]
-            } else {
-                return this.parseEnclosedExpressionSequence(TokenKind.OPENING_CBRACKET, TokenKind.CLOSING_CBRACKET, tokens)
-            }
-        } else {
-            let expr = this.parseExpression(tokens)
-            return [[expr], expr.metadata]
+        switch (dec.mode) {
+            case "block":
+                if (tokens.is(TokenKind.OPENING_CBRACKET)) {
+                    return this.parseEnclosedExpressionSequence(TokenKind.OPENING_CBRACKET, TokenKind.CLOSING_CBRACKET, tokens)
+                } else {
+                    let expr = this.parseExpression(tokens)
+                    return [[expr], expr.metadata]
+                }
+
+            case "inline":
+                let token = tokens.peak()
+                if (token.kind === TokenKind.OPENING_CBRACKET) {
+                    throwWith(token.metadata, "An inline macro doesn't expect a body.")
+                }
+                return [[], { src: tokens.src, span: [tokens.loc(), tokens.loc()] }]
         }
     }
 
@@ -260,16 +261,19 @@ export abstract class MicroParser {
             } else limbsIndex++
             
             if (tokens.is(TokenKind.OPENING_CBRACKET)) {
-                if (mode === "inline" || mode === "half-inline") {
-                    tokens.next()
-                    let expr = this.parseExpression(tokens)
-                    if (tokens.is(TokenKind.SEMICOLON)) throwWith(tokens.peak().metadata, "A single-expression body can't end with a semicolon.")
-                    end = tokens.expect(TokenKind.CLOSING_CBRACKET).metadata.span[1]
-                    limbsASTs[limbName] = [expr]
-                } else {
-                    let [exprs, metadata] = this.parseEnclosedExpressionSequence(TokenKind.OPENING_CBRACKET, TokenKind.CLOSING_CBRACKET, tokens)
-                    limbsASTs[limbName] = exprs
-                    end = metadata.span[1]
+                switch (mode) {
+                    case "block":
+                        let [exprs, metadata] = this.parseEnclosedExpressionSequence(TokenKind.OPENING_CBRACKET, TokenKind.CLOSING_CBRACKET, tokens)
+                        limbsASTs[limbName] = exprs
+                        end = metadata.span[1]
+                        break
+
+                    case "inline":
+                        tokens.next()
+                        let expr = this.parseExpression(tokens)
+                        if (tokens.is(TokenKind.SEMICOLON)) throwWith(tokens.peak().metadata, "A single-expression body can't end with a semicolon.")
+                        end = tokens.expect(TokenKind.CLOSING_CBRACKET).metadata.span[1]
+                        limbsASTs[limbName] = [expr]
                 }
             } else {
                 let expr = this.parseExpression(tokens)
@@ -397,8 +401,7 @@ export abstract class MicroParser {
             case TokenKind.OPENING_PAR: return this.parseParenthesizedExpression(tokens)
             case TokenKind.OPENING_BRACKET: return this.parseExplicitPack(tokens)
             case TokenKind.OPENING_CBRACKET: return this.parseSilentMacro(tokens)
-            case TokenKind.EOF: throwWith(tokens.peak().metadata, "Expression expected.")
-            default: throwWith(tokens.peak().metadata, "Unexpected character.")
+            default: throwWith(tokens.peak().metadata, "An expression was expected.")
         }
     }
 
