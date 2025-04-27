@@ -46,8 +46,7 @@ The operator declarations are the thing passed under the `operator` field. It's 
 
 Concretely, this means that those four will be the only authorized operators and that the parser will check that each time they appear in a script, they are being passed exactly two operands. Macro declarations work the same way : Here, we declare an `if` macro, that takes in one single argument, and allows an `else` limb to be appended to it. Optionnally, we can add `mode: 'block'` in the declaration to specify it's a block macro (but that's the default value), or `mode: 'inline'` if we want to declare an inline macro.
 
-Back to `#number`, now. As you might have already seen in the syntax reference, `#number` is a special operator that Micro uses to handle number literals. It isn't intended to be called explicitely in-script, so its relative precedence doesn't really matter. By convention, it's put at the top
-of the operator declarations, along with `#string` and `#name` if present. If one of `#number`, `#name` or `#string` isn't present, then the corresponding literal type is disabled and its use forbidden in-script.
+Back to `#number`, now. As you might have already seen in the syntax reference, `#number` is a special operator that Micro uses to handle number literals. It isn't intended to be called explicitely in-script, so its relative precedence doesn't really matter. By convention, it's put at the top of the operator declarations, along with `#string` and `#name` if present. If one of `#number`, `#name` or `#string` isn't present, then the corresponding literal type is disabled and its use forbidden in-script.
 
 You now can parse whatever (well-formed) script you want using `parser.parse(src)` :
 
