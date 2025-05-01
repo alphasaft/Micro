@@ -31,7 +31,7 @@ class DemoParser extends MicroParser {
                 [{ name: "+", arity: 2 }, { name: "-", arity: 2 }],
             ],
             macros: [
-                { name: "if", arity: 1, limbs: ["else"] }
+                { name: "if", arity: 1, kind: "block", limbs: ["else"] }
             ],
         })
     }
@@ -44,7 +44,7 @@ The operator declarations are the thing passed under the `operator` field. It's 
 - Every one of them has and arity of 2, meaning they take two operands to work with. 
 - Because of how high they stand in the outer list relative to each other, `*` and `/` have the same precedence, which is higher that the precedence of `+` and `-`.
 
-Concretely, this means that those four will be the only authorized operators and that the parser will check that each time they appear in a script, they are being passed exactly two operands. Macro declarations work the same way : Here, we declare an `if` macro, that takes in one single argument, and allows an `else` limb to be appended to it. Optionnally, we can add `mode: 'block'` in the declaration to specify it's a block macro (but that's the default value), or `mode: 'inline'` if we want to declare an inline macro.
+Concretely, this means that those four will be the only authorized operators and that the parser will check that each time they appear in a script, they are being passed exactly two operands. Macro declarations work the same way : Here, we declare an `if` block macro, that takes in one single argument, and allows an `else` limb to be appended to it.
 
 Back to `#number`, now. As you might have already seen in the syntax reference, `#number` is a special operator that Micro uses to handle number literals. It isn't intended to be called explicitely in-script, so its relative precedence doesn't really matter. By convention, it's put at the top of the operator declarations, along with `#string` and `#name` if present. If one of `#number`, `#name` or `#string` isn't present, then the corresponding literal type is disabled and its use forbidden in-script.
 

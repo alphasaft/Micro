@@ -28,7 +28,7 @@ type MacroKind = "block" | "inline" | "declaration";
  * @field limbs - The name of the different limbs in the right order.
  * @field mode - See MacroMode. Defaults to "block".
  */
-type MacroDeclaration = { name: string; arity: arity; limbs?: string[]; kind?: MacroKind };
+type MacroDeclaration = { name: string; arity: arity; limbs?: string[]; kind: MacroKind };
 
 /**
  * An operato declaration.
