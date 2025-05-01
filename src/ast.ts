@@ -36,14 +36,13 @@ export type LiteralAST = { metadata: Metadata; type: "literal"; value: string; }
  */
 export type AST = MacroAST | OpAST | LiteralAST
 
-
 /** Utility function provided for debuging purposes, pretty-printing ast with n (2 by default) spaces for indent. */
 export function printAst(ast: AST, n = 2) {
     function _printAst(ast: AST, d = 0) {
         let indent = " ".repeat(d*n)
         switch (ast.type) {
             case "literal": 
-                console.log(indent + "`"+ast.value+"`")
+                console.log(indent + "'"+ast.value)
                 break
 
             case "operation": 
@@ -55,8 +54,8 @@ export function printAst(ast: AST, n = 2) {
                 console.log(indent+ast.name+"(...)")
                 ast.body.forEach(stmt => _printAst(stmt, d+1))
                 for (let limbName in ast.limbs) {
-                    if (ast.limbs[limbName].length > 0) {
-                        console.log(indent+limbName)
+                    if (ast.limbs[limbName] !== undefined) {
+                        console.log(indent + limbName)
                         ast.limbs[limbName].forEach(stmt => _printAst(stmt, d+1))
                     }
                 }
@@ -66,13 +65,15 @@ export function printAst(ast: AST, n = 2) {
     _printAst(ast, 0)
 }
 
+
 /** Asserts this ast represents an operation, throws otherwise with msg. */
 export function assertOp(ast: AST, msg: string = "An operation was expected."): asserts ast is OpAST {
     if (ast.type !== "operation") throwWith(ast.metadata, msg)
 }
 
 /** Asserts this operation ast matches the provided operator, throws otherwise with msg. */
-export function assertOpKind(ast: OpAST, name: string, msg: string = `A '${name}' operator was expected.`) {
+export function assertOpKind(ast: AST, name: string, msg: string = `A '${name}' operator was expected.`) {
+    assertOp(ast, msg)
     if (ast.operator !== name) throwWith(ast.metadata, msg)
 }
 
@@ -90,7 +91,8 @@ export function assertMacro(ast: AST, msg: string = "A macro was expected."): as
 }
 
 /** Asserts this macro ast matches the provided macro name, throws otherwise with msg. */
-export function assertMacrokind(ast: MacroAST, name: string, msg: string = `A '${name}' operator was expected.`) {
+export function assertMacrokind(ast: AST, name: string, msg: string = `A '${name}' operator was expected.`) {
+    assertMacro(ast, msg)
     if (ast.name !== name) throwWith(ast.metadata, msg)
 }
 

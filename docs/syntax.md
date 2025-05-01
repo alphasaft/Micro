@@ -1,342 +1,347 @@
 
+# MICRO SYNTAX REFERENCE  
+
+We describe here every syntactic feature of Micro. Since Micro syntax has no semantics attached to it, so what we're discussing purely is how Micro parses expressions, and nothing else.
+
+
+## Basic syntax
+
+Comments start with `##` and end at the line break, or are wrapped inside a `#- -#` pair for multiline comments.
 ```
-#########################################
-#########################################
-#####     MICRO SYNTAX REFERENCE    #####     
-#########################################
-#########################################
+## This is a comment
+#- 
+And 
+so 
+is 
+this
+-#
+```
+
+A Micro script is a sequence of expressions, separated by semicolons. The last semicolon of a script is optional (and, generally speaking, the last semicolon of everything is). Line breaks and spaces are irrelevant.
+
+```
+## This is a valid script
+3-2;
+"hello" + " world " + "!";
+a || b@c;                  
+```
+
+The smallest building blocks for creating expressions are the primitives. The available primitives are strings, numbers and names. Backquotes allow to create names that contain spaces and special characters (in fact, anywhere a series of letters of some sort is expected, you can provided a backquoted expression instead).
+```
+"MICRO"; "micro";       ## Strings
+0;  3.2;                ## Numbers
+foo; bar;               ## Names
+`he he he !`;           ## Still a name
+```
 
 
-## Comments start with '##' and end at the line break, or are wrapped inside a #- -#
-## pair for multiline comments.
-
-## If something seems unclear, it might be because it has a (?) next to it, meaning : 
-## don't worry, it'll be expanded upon in the handbook.
-
-## Micro syntax has no semantics attached to it, so what we're describing here purely
-## is how Micro parses expressions, and nothing else.
+In addition to those primitives, Micro includes somethig known as literals. A literal is formed by prefixing a name with `'` :
+```
+'lit;                   ## OK
+'`backquotes r cool`;   ## OK
+```
 
 
 
-#########################################
-###           BASIC SYNTAX            ###
-#########################################
+There's two kind of operators, that differ only by their syntax : symbolic operators (any combination of these symbols : `&|~^@=+-*%!/:.,?!<>`), and hash operators. These start with a `#` (hence the name), followed by one or more letters. For instance, this is the hash operator `#in` applied to `0` and `list` :
+```
+0 #in list;
+```
 
-## A Micro script is a sequence of expressions, separated by semicolons. 
-## The last semicolon of a script is optional (and, generally speaking, 
-## the last semicolon of everything is)
-
-## An expression is made out of operators and operands :
-
-## + applied to a and b.
-a+b;                         
-
-## While symbolic operators do the trick most of the time, Micro also provides hash operators. 
-## These are regular operators but they start with an '#' (hence the name) followed by letters.
-## For instance, this is the operator #in applied to elem and list :
-elem #in list;
+You can use hash operators just like normal operators, everywhere they appear :
+```
+condition = 0 #in list && 1 #notin list;
+```
 
 
-## If * has higher precedence (?) than + :
+## Precedence and arity
+
+To know how an expression must be parsed, Micro relies on precedence ; this is a fancy word to say 'some operators go before others'. If `*` has higher precedence than `+` :
+```
 1+2*3 <=> 1+(2*3);
 1*2+3 <=> (1*2)+3;
+```
 
-## If + and - have the same precedence :
-1+2-3 <=> (1+2)-3;
-1-2+3 <=> (1-2)+3;
-
-
-## Micro packs together operands to a same operator, so :
-1+2+3;
-## Is neither (1+2)+3, nor 1+(2+3), but the operator + applied to 1, 2 and 3 at the same time
-## effectively turning + into a ternary (3-operands) operator here.
-
-## The explicit pack syntax is handy syntactic sugar meaning the exact same thing.
-[#op a;b;c;...;z]; <=> a #op b #op c #op ... #op z
+If `#add` and `#sub` have the same precedence, the leftmost one always wins :
+```
+1 #add 2 #sub 3 <=> (1 #add 2) #sub 3;
+1 #sub 2 #add 3 <=> (1 #sub 2) #add 3;
+```
 
 
-## Micro allows unary operators in a prefix form...
-#print 0;
+Micro packs together operands to a same operator, so `1+2+3` is neither `(1+2)+3`, nor `1+(2+3)`, but the operator `+` applied to `1`, `2` and `3` simultaneously, effectively turning + into a ternary (3-operands) operator here. The explicit pack syntax is handy syntactic sugar meaning the exact same thing :
+```
+[#op a;b;c;...;z] <=> a #op b #op c #op ... #op z
+```
 
-## ...and an operator can be applied to nothing :
-?;        ## OK
 
-## If there's an ambiguity, enclose it in square brackets or in parentheses :
+Micro allows unary operators in a prefix form, as well as applied to nothing :
+```
+#print 0;   ## OK
+?;          ## OK
+```       
+
+If there's an ambiguity, enclose the problematic operator in square brackets or in parentheses :
+```
 ? || 3 <=> (? (|| 3));  ## Probably not what was intended
 [?] || 3                ## OK
 (?) || 3                ## OK
+```
 
-## Operator arity (?) is enforced when parsed. So if + is declared with an arity of 2 :
+
+Micro also enforces operator arity, which is yet another complicated word to mean 'how much operands an operator accepts'. So if + is declared with an arity of 2 :
+```
 1+2;    ## OK
 1+2+3;  ## NO
 +1;     ## NO
 +;      ## NO
+```
 
+## Implicit operators         
 
-
-
-#########################################
-###        IMPLICIT OPERATORS         ###
-#########################################
-
-## Some operators are implicitely generated, starting
-## with the '#list' one.
+Some operators are implicitely generated when encountering certain syntactical structures, starting with the `#list` one.
+```
 [a;b;c] <=> [#list a;b;c];
 [a] <=> [#list a];
 [] <=> [#list];
+```
 
-## Similarly, we also have #tuple :
+Similarly, we also have `#tuple` :
+```
 (a;b;c) <=> [#tuple a;b;c];
 (a;) <=> [#tuple a];    ## Warning, without the ';', it's understood as a simple parenthesized expression !
 () <=> [#tuple];
+```
 
-
-## Next up are #call...
+Next up are `#call`...
+```
 f(x;y;z) <=> [#call f;x;y;z];
 f(x) <=> [#call f;x];
 f() <=> [#call f];
+```
 
-## ...and #index.
+...and `#index`.
+```
 array[0;10] <=> [#index array;0;10];
 array[0] <=> [#index array;0] <=> array #index 0;
 array[] <=> [#index array];
+```
 
-## Note that the thing that's called/indexed can be anything :
+Note that the thing that's called/indexed can be anything :
+```
 (obj.method)(x) <=> [#call object.method;x];
 ("hello, " + "world !")[0] <=> [#index "hello, "+"world !";0];
+```
 
-## The precedence of #call and #index respectively are used to determine what is called/indexed
-## For instance, if + has lower precedence than #index, then :
+The precedence of #call and #index respectively are used to determine what is called/indexed For instance, if + has lower precedence than #index, then :
+```
 a+b[0] <=> a+(b[0])
+```
 
-## But if . has higher precedence than #call, then :
+But if . has higher precedence than #call, then :
+```
 a.b() <=> (a.b)()
+```
 
 
+In fact, primitives also are implicit operators, called respectively `#number`, `#name` and `#string` :
+```
+0       <=> [#number '`0`];
+x       <=> [#name 'x];
+"hi !"  <=> [#string '`hi !`];
+```
 
-## Literals (?) also are, in fact, implicitely generated operators.
-## When a literal is encountered, it's wrapped as a raw string inside the corresponding operator :
-0 <=> [#number `0`];
-"hi !" <=> [#string `hi !`];
-x <=> [#name `x`];
+The `#string` operator differs a bit from the two others in the fact it has additionnal semantics. Should string formatting be used, it will get additionnal arguments :
+
+```
+"Hi, {name} !"  <=>  [#string '`Hi, `; name; '` !`]
+```
+
+Due to how this is implemented, a call to `#string` that emanated from a string formatting template always begins and ends with a literal, even if said literals must be empty to comply with that rule :
+
+```
+"{name}"  <=>  [#string '``; name; '``];
+```
+
+In the end, it all boils down to literals, which can be seen as the fundamental building block of Micro scripts. And speaking of blocks: 
 
 
-#########################################
-###              MACROS               ###
-#########################################
+## Block macros
 
 
-## Macros are, in a sense, the syntactical heart of Micro.
-## They are very versatile, and come in two flavors :
-
-## A block macro is, as its name suggest, a block of code, wrapped inside 
-## a pair of brackets. The syntax is the following :
+Macros are yet another kind of operand, which come in two flavors, the first of which are block macros. A block macro is, as its name suggest, a block of code, wrapped inside a pair of brackets.  The syntax is the following :
+```
 macroName(arg1; ...; argn) {
     stmt1;
     ...;
     stmtn;
 };
-
-## stmti and argi must be valid expressions. The argument list is often called
-## the head, while the statement list is called the body.
-
-## Line breaks and spaces are irrelevant, so this is fine as well :
+```
+`stmti` and `argi` must be valid expressions, but there's no additionnal requirements for them. The argument list is often called the head, while the statement list is called the body. Line breaks and spaces are irrelevant, so this is fine as well :
+```
 macro(
     arg1; 
     ...; 
     argn;
 ) { stmt1; ...; stmtn };
+```
+
+AS with any operand, you can nest them, operate on them, and so on :
+```
+if (false) {            ##
+    if (true) {         ##
+        doSomething()   ## OK
+    }                   ##
+};                      ##    
+
+3 + compute() { ... };  ## OK
+```
 
 
-## Additionnaly, a macro can be followed by one or more limbs.
-## These are additionnal blocks of code preceded by a word :
+Additionnaly, a macro can be followed by one or more limbs. These are additionnal blocks of code preceded by a word :
+```
 if (true) {
     doSomething();      ## The standard macro body
 } else {
-    doSomethingElse();  ## An else limb
+    doSomethingElse();  ## An 'else' limb
 };
+```
 
-## Limbs must always be in the right order, but some can be omitted. 
-## For instance, if the macro is declared as try with limbs catch and finally :
+Limbs must always be in the right order, but some can be omitted. For instance, if the macro is declared as try with limbs catch and finally :
+```
 try { };                        ## OK
 try { } finally { };            ## OK
 try { } catch { } finally { };  ## OK
 try { } finally { } catch { };  ## NO
+```
 
-
-## If the head of a block macro is empty, then the parentheses are optional :
-loop {
-    ...
-}
-
-## If its body is made of one single statement, you can drop the brackets :
-if (true) doThis() <=> if(true) { doThis() };
-
-## However, it is not legal to drop the {} altogether if the body is empty
-if (false) {};  ## OK
-if (false);     ## NO
-
-## Same goes for the limbs :
-if (true) { ... } else #throw "ERROR !";    ## OK
-if (true) { ... } else {};                  ## OK
-if (true) { ... } else;                     ## NO
-
-
-## The second macro kind are inline macros, so called because they almost always
-## are one-liners, and are much shorter than their block counterparts.
-## They don't have a body, only a head and some limbs, which must 
-## be a word followed by a single expression, with or without {} surrounding it
-## Just like with block macros, the parentheses around the head can be removed
-## if said head is empty.
-return (0)                      ## OK
-return (true; false);           ## OK
-import (x) from "file";         ## OK
-import (y) from { "file" };     ## OK
-break;                          ## OK
-return (0) { ... };             ## NO, an inline macro can't have a body
-return (0) {};                  ## NO, for the same reason
-import (z) from { "file"; };    ## NO, semicolon is not allowed here
-import (z) from { "f";"g" };    ## NO, it must be a single expression
-break at "external-loop";       ## OK, empty head and an 'at' limb
-
-
-## Always remember that macros are valid expression.
-## They can be operated upon, nested, and so on
-let n = m - await (costlyComputation);
-if (true) {
-    if (false) print("This will never execute")
-    else if (false) print("Nor will that")
-    else {
-        print("Hello,");
-        print("world !");
-    }
-};
-
-
-
-#########################################
-###        SPECIAL MACRO FORMS        ###
-#########################################
-
-
-## Using a pair of curly brackets alone is understood as invoking
-## a macro named '' (empty string), which we call the silent macro.
-{};
-
-## Just like a normal block macro, statements can be put inside.
-## These will form the body of the macro
-{ x;y;z };
-
-
-
-## If a ' (termed "binding tick") follows a macro name,
-## it triggers the bound macro behavior :
-
-function' f(x; y; z) { 
-    ... 
-} 
-
-    <=> 
-
-function'(`f`;x;y;z) { 
-    ... 
-};
-
-## i.e the name following it is passed as a literal as the first argument to the macro.
-## Notice that said macro is not function here, but function' : The binding tick is 
-## part of the name of the macro, and :
-
-x = function() { ... };
-function' x() { ... };  
-
-## result in two effectively different macro calls (to function and function' respectively).
-
-
-
-#########################################
-###               RECAP               ###
-#########################################
-
-## Here's a sample script that recaps everything we've seen until here :
-
-## inline import macro with a from limb
-import (display, input) from "io";
-
-## Bound macro function'
-function' getCommandLineArgs() {
-
-    ## Inline macro let + nullary operator #commandlineargs
-    let args = [#commandlineargs];
-
-    ## Operator '!!' (here, meant as "ensure that") used in a prefix fashion
-    ## along with an implicit #index and a #string literal
-    !! args[0] == "myProgram";
-    !! #length args == 2;
-
-    ## Another inline macro return
-    return args
-};
-
-
-## #calling getCommandLineArgs
-let args = getCommandLineArgs(); 
-
-## if macro
-if ("--plot" #in args) {
-    ## Explicit pack on #bezier and implicit #tuples.
-    let myBezierCurve = [#bezier (0;0);(1/2;1);(0;1)];
-
-    ## Ploting with unary operator #plot
-    #plot myBezierCurve;
-} 
-
-## else limb, its body being a single if macro
-else if ("--game" #in args) {
-
-    display("Let's play a guessing game !");
-
-    ## Using the silent macro as some kind of object literal, along with a syntactic ':' operator
-    let state = { attempts: 0; secret: [? 1;100] };
-
-    while (true) {
-        let guess = parseFloat(getInput("Enter a guess :"));
-
-        ## Two macros, when & do, with an arity of 0
-        when {
-            guess > state.secret -> do {
-                display("It's lower than that !");
-                ++state.attemps;  ## Remember there is no such things as suffix operators in Micro
-            };
-            guess < state.secret -> do {
-                display("It's bigger than that !");
-                ++state.attemps;
-            };
-            guess == state.secret -> do {
-                ## + will be applied to the two strings and state.attempts at the same time.
-                display("Congratulations, you won in " + state.attempts + "attempts !");
-                #exit 0;
-            }
-        }
-    }
-}
-
-
-## Note that here, the syntax is very similar to Javascript's on purpose, 
-## but it's totally possible to stray far away from it if you wish ; 
-## in fact, Micro was designed precisely for when Javascript (or python,
-## or whatever) was not able to concisely express some kind of behavior or data :
-
-
-movement' jump(height; duration) {
-    [#moveAlong (0;height/2); duration/2] ~ quickStart;  ## Adding #quickStart for non-linear movement
-    [#moveAlong (0;-height/2); duration/2] ~ slowStart;  ## Same here
-}
-
-animation' main {
-    pnj1 : setPos((-100;0)), jump(50; 1), wait(0.5);
-    pnj2 : setPos((100;0)), wait(0.5), jump(50; 1);
-}
-
+Micro will implicitely consider any declared but missing limb to be present, with an empty body :
+```
+if (true) { ... } <=> if (true) { ... } else {}
 ```
 
 
+Block macro syntax supports some syntactic sugar. If the head of a block macro is empty, then the parentheses are optional :
+```
+loop { doThis() }
+```
+
+If its body is made of one single statement, you can drop the brackets :
+```
+loop() doThis() <=> loop() { doThis() };
+```
+
+Both rules do hold at the same time :
+```
+loop doThis();  ## OK
+```
+
+However, it is not legal to drop the `{}` if the body is empty.
+```
+loop {};  ## OK
+loop;     ## NO
+```
+
+
+Same goes for the limbs :
+```
+if (true) { ... } else #throw "ERROR !";    ## OK
+if (true) { ... } else {};                  ## OK
+if (true) { ... } else;                     ## NO
+```
+
+Using a pair of curly brackets alone is understood as invoking a macro named `''` (empty string), which we call the silent macro.
+```
+{};
+```
+
+Just like a normal block macro, statements can be put inside. These will form the body of the macro
+```
+{ x;y;z };
+```
+
+Should you want to pass arguments and add limbs to the silent macro, you would write this :
+
+```
+``(arg1; ...; argn) { x;y;z } limb { };
+```
+
+But this is highly unclear, and it is made possible only because of how ``` ` ```-surrounded names work. Here, we literaly invoke the macro which has name ``` `` ``` (empty string), which is simply the silent macro. It is highly recommended not to use this syntax at all.
+
+
+## Other macro forms
+
+There exist two more macro syntactic form, which are also useful in a variety of situation.
+
+Inline macros, so called because they almost always are one-liners, are much shorter than their block counterparts. They don't have a body, only a head.
+```
+return (0)                      ## OK
+return (true; false);           ## OK
+return (0) { ... };             ## NO, an inline macro can't have a body
+return (0) {};                  ## NO, for the same reason
+return { "hi"; "hello" };       ## OK, but actually calls the silent macro.
+```
+
+They can have limbs, but each limb must be a single expression.
+```
+import (a) from "file";                  
+import (d) from { "file1"; "file2" };    ## OK, but it is parsed as `... from ({ "file1"; "file2" })`, i.e as a silent macro invokation.
+```
+
+The parentheses can be dropped if the head :
+- is empty and no limb is following : `return () <=> return;`
+- contains exactly one expression, whether or not a limb is following : `import x from "file" <=> import (x) from "file";`
+
+Aside from that, they can't, because it will be ill-parsed.
+```
+break at externalLoop;  <=>  break (at externalLoop);   ## NO
+break () at externalLoop;                               ## OK
+import x;y from "file" <=> (import x); (y from file);   ## NO
+import (x;y) from "file";                               ## OK
+```
+
+
+The last kind of macros is mostly used to mimic declarations of objects of some kind. They are called declarative macros and have a syntax that differs by quite a bit from the other two. Take for instance a declarative macro called `func`. Then :
+
+```
+func f(arg1, ..., argn) returning int { 
+    stmts
+}
+```
+
+would be written, if `func` was a block macro, as :
+
+```
+func ('f, arg1, ..., argn) {
+    stmts 
+} returning int
+```
+
+i.e the thing (which has to be an identifier) that immediately follows the macro name is pushed at the front of the head as a `'literal`, and the limbs are located prior to the body. Also, said limbs, just like with inline macros, have to be a single expression ; should brackets be present, they will be understood as a call to the silent macro. The `()` can be dropped if the argument list is empty, but the `{}` around the body are mandatory.
+
+```
+## OK
+class A extends B {
+    ...
+};
+
+## NO
+class A extends B;
+
+## Technically almost OK, but NO
+class A extends B 
+    constructor() {  };
+```
+
+The last example will indeed be parsed as :
+
+```
+       constructor limb ----     --- class body
+                           |     |
+class A extends B constructor () {};
+|        |                    | 
+-- name  |                    ---- [#tuple]
+         --- extends limb  
+```
+
+And hence will crash, because your `class` macro likely didn't expect to have a `constructor` limb, and, even if it did, `[#tuple]` probably has nothing to do there.

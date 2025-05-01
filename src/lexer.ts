@@ -1,33 +1,39 @@
-import { Metadata } from "./metadata"
+import { Metadata, throwWith } from "./metadata"
 import { between } from "./_util"
 
 export enum MicroTokenKind {
     SEMICOLON,
     TICK,
-    OPENING_PAR,
-    CLOSING_PAR,
-    OPENING_BRACKET,
-    CLOSING_BRACKET,
-    OPENING_CBRACKET,
-    CLOSING_CBRACKET,
+    QUOTE,
+
+    LEFT_PAR,
+    RIGHT_PAR,
+    LEFT_BRACKET,
+    RIGHT_BRACKET,
+    LEFT_CBRACKET,
+    RIGHT_CBRACKET,
+
     OPERATOR,
-    NAME,
+    IDENTIFIER,
     NUMBER,
-    STRING,
+
+    UNKNOWN,
     EOF,
 }
+
 
 export type MicroToken = { kind: MicroTokenKind, value: string, metadata: Metadata }
 
 export function canStartExpression(token: MicroToken) {
     switch (token.kind) {
-        case MicroTokenKind.OPENING_PAR:
-        case MicroTokenKind.OPENING_BRACKET:
-        case MicroTokenKind.OPENING_CBRACKET:
+        case MicroTokenKind.LEFT_PAR:
+        case MicroTokenKind.LEFT_BRACKET:
+        case MicroTokenKind.LEFT_CBRACKET:
         case MicroTokenKind.OPERATOR:
-        case MicroTokenKind.NAME:
+        case MicroTokenKind.IDENTIFIER:
         case MicroTokenKind.NUMBER:
-        case MicroTokenKind.STRING:
+        case MicroTokenKind.TICK:
+        case MicroTokenKind.QUOTE:
             return true
         default:
             return false
@@ -51,7 +57,7 @@ export class TokenStream {
 
     expect(kind: MicroTokenKind) {
         let token = this.next()
-        if (token.kind !== kind) throw `${kind} expected.`
+        if (token.kind !== kind) throwWith(token.metadata, `${MicroTokenKind[kind]} expected.`)
         return token
     }
 
@@ -75,19 +81,20 @@ export class MicroLexer {
     private static readonly COMMENT_START = "#-"
     private static readonly COMMENT_END = "-#"
     private static readonly WHITESPACE_CHARS = "\n\t "
-    private static readonly OPERATOR_CHARS = "&|~^@=+-*%!§/:.,?!<>"
+    private static readonly OPERATOR_CHARS = "&|~^@=+-*%!/:.,?!<>"
     private static readonly zeroCC = '0'.charCodeAt(0)
     private static readonly nineCC = '9'.charCodeAt(0)
 
     private static readonly CONTROL = {
         "'": MicroTokenKind.TICK,
         ';': MicroTokenKind.SEMICOLON,
-        '(': MicroTokenKind.OPENING_PAR,
-        ')': MicroTokenKind.CLOSING_PAR,
-        '[': MicroTokenKind.OPENING_BRACKET,
-        ']': MicroTokenKind.CLOSING_BRACKET,
-        '{': MicroTokenKind.OPENING_CBRACKET,
-        '}': MicroTokenKind.CLOSING_CBRACKET,
+        '(': MicroTokenKind.LEFT_PAR,
+        ')': MicroTokenKind.RIGHT_PAR,
+        '[': MicroTokenKind.LEFT_BRACKET,
+        ']': MicroTokenKind.RIGHT_BRACKET,
+        '{': MicroTokenKind.LEFT_CBRACKET,
+        '}': MicroTokenKind.RIGHT_CBRACKET,
+        '"': MicroTokenKind.QUOTE
     }
 
     
@@ -137,7 +144,8 @@ export class MicroLexer {
     }
 
     /** 
-     * Tokenizes src. This method is reserved for internal use : directly parse `src` using a MicroParser instead.
+     * Tokenizes src into a TokenStream.
+     * This method is reserved for internal use : directly parse `src` using a MicroParser instead.
      */
     tokenize(src: string): TokenStream {
         let i = 0
@@ -147,12 +155,11 @@ export class MicroLexer {
             if (i >= src.length) return new TokenStream(src, tokens)
 
             let token = 
-                  this.isOperatorFirstChar(src, i) ? this.makeOperatorToken(src, i)
-                : this.isLetter(src, i)            ? this.makeNameToken(src, i)
-                : this.isNumber(src, i)            ? this.makeNumberToken(src, i)
-                : src[i] === '"'                   ? this.makeStringToken(src, i)  // Fix it
-                : src[i] in MicroLexer.CONTROL     ? this.makeControlToken(src, i)
-                : (() => { throw `Unknown character ${src[i]}.` })()
+                  this.isOperatorFirstChar(src, i)          ? this.makeOperatorToken(src, i)
+                : this.isLetter(src, i) || src[i] === "`"   ? this.makeNameToken(src, i)
+                : this.isNumber(src, i)                     ? this.makeNumberToken(src, i)
+                : src[i] in MicroLexer.CONTROL              ? this.makeControlToken(src, i)
+                :                                             this.makeUnknownToken(src, i)
             
             i = token.metadata.span[1]
             tokens.push(token)
@@ -177,8 +184,14 @@ export class MicroLexer {
 
     private makeNameToken(src: string, i: number): MicroToken {
         let j = i
-        while (this.isLetter(src, j)) j++
-        return this.makeToken(MicroTokenKind.NAME, src, i, j)
+        if (src[j] === "`") {
+            j++
+            while (src[j] !== "`") j++
+            return { kind: MicroTokenKind.IDENTIFIER, value: src.substring(i+1, j), metadata: { src, span: [i,j+1] } }
+        } else {    
+            while (this.isLetter(src, j)) j++
+            return this.makeToken(MicroTokenKind.IDENTIFIER, src, i, j)
+        }
     }
 
     private makeNumberToken(src: string, i: number): MicroToken {
@@ -189,16 +202,12 @@ export class MicroLexer {
         return this.makeToken(MicroTokenKind.NUMBER, src, i, j)
     }
 
-    private makeStringToken(src: string, i: number): MicroToken {
-        let j = i+1
-        while (j < src.length && (src[j] !== "\"" || src[j-1] === "\\")) j++
-        if (j === src.length) throw `Closing '"' expected.` 
-        else j++
-        return { kind: MicroTokenKind.STRING, value: src.substring(i+1,j-1), metadata: { src, span: [i,j] } }
-    }
-
     private makeControlToken(src: string, i: number): MicroToken {
         let char = src[i] as keyof typeof MicroLexer.CONTROL
         return this.makeToken(MicroLexer.CONTROL[char], src, i, i+1)
+    }
+
+    private makeUnknownToken(src: string, i: number): MicroToken {
+        return this.makeToken(MicroTokenKind.UNKNOWN, src, i, i+1)
     }
 }

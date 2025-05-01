@@ -11,17 +11,15 @@ type arity = number | rangeArity;
 let toRangeArity = (n: arity): rangeArity => typeof n === "number" ? [n,n] : n
 
 /** An arity equal to [0, Infinity]. */
-export let any: arity = [0, Infinity]
+export let zeroOrMore: arity = [0, Infinity]
 /** An arity equal to [1, Infinity]. */
 export let oneOrMore: arity = [1, Infinity]
 /** An arity equal to [2, Infinity]. */
 export let twoOrMore: arity = [2, Infinity]
 
 
-/**
- * The expected syntax for the macro. See the syntax reference for more details.
- */
-type MacroMode = "block" | "inline";
+/** The expected syntax for the macro. See the syntax reference for more details. */
+type MacroKind = "block" | "inline" | "declaration";
 
 /**
  * A macro declaration.
@@ -30,7 +28,7 @@ type MacroMode = "block" | "inline";
  * @field limbs - The name of the different limbs in the right order.
  * @field mode - See MacroMode. Defaults to "block".
  */
-type MacroDeclaration = { name: string; arity: arity; limbs?: string[]; mode?: MacroMode };
+type MacroDeclaration = { name: string; arity: arity; limbs?: string[]; kind?: MacroKind };
 
 /**
  * An operato declaration.
@@ -40,7 +38,7 @@ type MacroDeclaration = { name: string; arity: arity; limbs?: string[]; mode?: M
 type OpDeclaration = { name: string; arity: arity } 
 
 
-type InternalMacroDeclaration = { arity: [number, number], limbs: string[], mode: MacroMode }
+type InternalMacroDeclaration = { arity: [number, number], limbs: string[], mode: MacroKind }
 type InternalOpDeclaration = { precedence: number, arity: [number, number] }
 
 
@@ -49,7 +47,7 @@ type ParserConfig = {
     macros: MacroDeclaration[],
 }
 
-/** An abstract class that parses a specific version of the Micro language. */
+/** An abstract class that can be subclassed to parse a specific version of the Micro language. */
 export abstract class MicroParser {
     static readonly numberOp = "#number"
     static readonly stringOp = "#string"
@@ -86,7 +84,7 @@ export abstract class MicroParser {
 
         this.macros = {}
         for (let macro of macros) {
-            this.macros[macro.name] = { arity: toRangeArity(macro.arity), limbs: macro.limbs ?? [], mode: macro.mode ?? "block" }
+            this.macros[macro.name] = { arity: toRangeArity(macro.arity), limbs: macro.limbs ?? [], mode: macro.kind ?? "block" }
         }
 
         this.lexer = new MicroLexer
@@ -111,15 +109,7 @@ export abstract class MicroParser {
         }
     }
 
-    private checkMacroExists(name: string, metadata: Metadata) {
-        if (!(name in this.macros)) throwWith(metadata, `Unknown macro '${name}'.`)
-    }
-
     private makeMacro(name: string, body: AST[], args: AST[], limbs: Dictionary<AST[]>, metadata: Metadata): AST {
-        this.checkMacroExists(name, metadata)
-        this.checkMacroArity(metadata, name, args.length)
-        for (let limb in limbs) this.checkMacroHasLimb(metadata, name, limb)
-        for (let limb of this.macros[name].limbs) limbs[limb] = limbs[limb] ?? []
         return { type: "macro", name, body, head: args, limbs, metadata }
     }
 
@@ -141,7 +131,7 @@ export abstract class MicroParser {
         return { type: "literal", value: token.value, metadata: token.metadata }
     }
     
-    private makeLiteralOperation(op: string, token: Token): OpAST {
+    private makePrimitiveOperation(op: string, token: Token): OpAST {
         return this.makeOperation(op, [this.makeLiteral(token)], token.metadata )
     } 
 
@@ -156,10 +146,73 @@ export abstract class MicroParser {
                 if (tokens.is(end)) break
             }
             else if (tokens.is(end)) break
-            else throwWith(tokens.peak().metadata, "Semicolon expected.")
+            else throwWith(tokens.peak().metadata, "Semicolon expected. Maybe you misspelled a macro name ?")
         }
 
         return sequence
+    }
+
+    private parseLiteral(tokens: TokenStream): AST {
+        let start = tokens.expect(TokenKind.TICK).metadata.span[0]
+        let name = tokens.expect(TokenKind.IDENTIFIER)
+        let end = name.metadata.span[1]
+        return { type: "literal", value: name.value, metadata: { src: tokens.src, span: [start, end] } }
+    }
+    
+    private parseNumber(tokens: TokenStream): AST {
+        return this.makePrimitiveOperation(MicroParser.numberOp, tokens.next())
+    }
+
+    private parseName(tokens: TokenStream): AST {
+        return this.makePrimitiveOperation(MicroParser.nameOp, tokens.expect(TokenKind.IDENTIFIER))
+    }
+    
+    private parseString(tokens: TokenStream): AST {
+        let src = tokens.src
+        let startingQuote = tokens.expect(TokenKind.QUOTE)
+        let operands: AST[] = []
+        let anchor = startingQuote.metadata.span[1]
+
+        while (!tokens.is(TokenKind.QUOTE)) {
+            if (tokens.is(TokenKind.LEFT_CBRACKET)) {
+                let end = tokens.next().metadata.span[0]
+                operands.push({ type: "literal", value: src.substring(anchor, end), metadata: { src, span: [anchor, end] } })
+                operands.push(this.parseExpression(tokens))
+                anchor = tokens.expect(TokenKind.RIGHT_CBRACKET).metadata.span[1]
+            } else {        
+                tokens.next()
+            }
+        }
+
+        let endingQuote = tokens.expect(TokenKind.QUOTE)
+        let stringEnd = endingQuote.metadata.span[0]
+        operands.push({ type: "literal", value: src.substring(anchor, stringEnd), metadata: { src, span: [anchor, stringEnd] } })
+        
+        return this.makeOperation(
+            MicroParser.stringOp,
+            operands,
+            { src: tokens.src, span:  [startingQuote.metadata.span[0], endingQuote.metadata.span[1]] }
+        )
+    }
+    
+    private parseNameOrMacro(tokens: TokenStream): AST {
+        let name = tokens.peak().value
+        return name in this.macros 
+            ? this.parseMacro(tokens)
+            : this.parseName(tokens)
+    }
+
+    private parseMacro(tokens: TokenStream): AST {
+        let name = tokens.peak().value
+        let macroDec = this.macros[name]
+        switch (macroDec.mode) {
+            case "block":
+                return this.parseBlockMacro(tokens)
+            case "inline":
+                return this.parseInlineMacro(tokens)
+            case "declaration":
+                return this.parseDeclarativeMacro(tokens)
+        }
     }
 
     private parseEnclosedExpressionSequence(left: TokenKind, right: TokenKind, tokens: TokenStream): [AST[], Metadata] {
@@ -169,36 +222,23 @@ export abstract class MicroParser {
         return [args, { src: tokens.src, span: [begin, end] }]
     }
 
-    private parseNumber(tokens: TokenStream): AST {
-        return this.makeLiteralOperation(MicroParser.numberOp, tokens.next())
-    }
-
-    private parseString(tokens: TokenStream): AST {
-        return this.makeLiteralOperation(MicroParser.stringOp, tokens.next())
-    }
-    
-    private parseNameOrMacro(tokens: TokenStream): AST {
-        let nameToken = tokens.next()
+    private parseBlockMacro(tokens: TokenStream): AST {
+        let nameToken = tokens.expect(TokenKind.IDENTIFIER)
         let name = nameToken.value
-        if (tokens.is(TokenKind.TICK) || name in this.macros) return this.parseMacro(nameToken, tokens)
-        else return this.makeLiteralOperation(MicroParser.nameOp, nameToken)
-    }
-
-    private parseMacro(nameToken: Token, tokens: TokenStream): AST {
-        let name = nameToken.value
-        let binding = tokens.is(TokenKind.TICK) ? this.parseMacroBinding(tokens) : null
-        if (binding) { 
-            name += "'"
-            this.checkMacroExists(name, nameToken.metadata)
-        }
-
         let macroDeclaration = this.macros[name]
-        let [head, headMeatadata] = this.parseMacroHead(tokens, macroDeclaration)
-        if (binding !== null) head = [binding, ...head]
-        this.checkMacroArity(headMeatadata, name, head.length)
-        let [body, _] = this.parseMacroBody(tokens, macroDeclaration)
-        let [limbs, limbsMetadata] = this.parseMacroLimbs(tokens, name, macroDeclaration)
-        let metadata: Metadata = { src: tokens.src, span: [headMeatadata.span[0], limbsMetadata.span[1]] }
+
+        let [head, headMetadata]: [AST[], Metadata] = tokens.is(TokenKind.LEFT_PAR) 
+            ? this.parseEnclosedExpressionSequence(TokenKind.LEFT_PAR, TokenKind.RIGHT_PAR, tokens)
+            : [[], { src: tokens.src, span: [tokens.loc(), tokens.loc()]}]
+        
+        this.checkMacroArity(headMetadata, name, head.length)
+
+        let body = tokens.is(TokenKind.LEFT_CBRACKET)
+            ? this.parseEnclosedExpressionSequence(TokenKind.RIGHT_PAR, TokenKind.LEFT_BRACKET, tokens)[0]
+            : [this.parseExpression(tokens)]
+
+        let [limbs, limbsMetadata] = this.parseMacroLimbs(tokens, name, macroDeclaration.limbs, false)
+        let metadata: Metadata = { src: tokens.src, span: [nameToken.metadata.span[0], limbsMetadata.span[1]] }
         
         return this.makeMacro( 
             name, 
@@ -209,47 +249,63 @@ export abstract class MicroParser {
         )
     }
 
-    private parseMacroBinding(tokens: TokenStream): LiteralAST {
-        tokens.expect(TokenKind.TICK)
-        let boundTo = tokens.expect(TokenKind.NAME)
-        return this.makeLiteral(boundTo)
+    private parseInlineMacro(tokens: TokenStream) {
+        let nameToken = tokens.expect(TokenKind.IDENTIFIER)
+        let name = nameToken.value
+        let macroDeclaration = this.macros[name]
+
+        let [head, headMetadata]: [AST[], Metadata] = tokens.is(TokenKind.LEFT_PAR) 
+            ? this.parseEnclosedExpressionSequence(TokenKind.LEFT_PAR, TokenKind.RIGHT_PAR, tokens)
+            : canStartExpression(tokens.peak()) ? (() => { let ast = this.parseExpression(tokens); return [[ast], ast.metadata] })()
+            : [[], { src: tokens.src, span: [tokens.loc(), tokens.loc()] }]
+        
+        if (tokens.is(TokenKind.LEFT_CBRACKET)) throwWith(tokens.peak().metadata, "Inline macros don't expect a body.")
+        
+        this.checkMacroArity(headMetadata, name, head.length)
+
+        let [limbs, limbsMetadata] = this.parseMacroLimbs(tokens, name, macroDeclaration.limbs, true)
+        let metadata: Metadata = { src: tokens.src, span: [nameToken.metadata.span[0], limbsMetadata.span[1]] }
+
+        return this.makeMacro(
+            name,
+            [],
+            head,
+            limbs,
+            metadata,
+        )
     }
 
-    private parseMacroHead(tokens: TokenStream, _macroDeclaration: InternalMacroDeclaration): [AST[], Metadata] {
-        if (tokens.is(TokenKind.OPENING_PAR)) {
-            return this.parseEnclosedExpressionSequence(TokenKind.OPENING_PAR, TokenKind.CLOSING_PAR, tokens)
-        } else {
-            return [[], { src: tokens.src, span: [tokens.loc(), tokens.loc()] }]
-        }
+    private parseDeclarativeMacro(tokens: TokenStream): AST {
+        let nameToken = tokens.expect(TokenKind.IDENTIFIER)
+        let name = nameToken.value
+        let binding = this.makeLiteral(tokens.expect(TokenKind.IDENTIFIER))
+
+        let [head, headMetadata]: [AST[], Metadata] = tokens.is(TokenKind.LEFT_PAR)
+            ? this.parseEnclosedExpressionSequence(TokenKind.LEFT_PAR, TokenKind.RIGHT_PAR, tokens)
+            : [[], { src: tokens.src, span: [tokens.loc(), tokens.loc()] }]
+        head = [binding, ...head]
+        this.checkMacroArity(headMetadata, name, head.length)
+
+        let limbs = this.parseMacroLimbs(tokens, name, this.macros[name].limbs, true)[0]
+        let [body, bodyMetadata] = this.parseEnclosedExpressionSequence(TokenKind.LEFT_CBRACKET, TokenKind.RIGHT_CBRACKET, tokens)
+        let metadata: Metadata = { src: tokens.src, span: [nameToken.metadata.span[0], bodyMetadata.span[1]] }
+
+        return this.makeMacro(
+            name,
+            body,
+            head,
+            limbs,
+            metadata
+        )
     }
 
-    private parseMacroBody(tokens: TokenStream, dec: InternalMacroDeclaration): [AST[], Metadata] {
-        switch (dec.mode) {
-            case "block":
-                if (tokens.is(TokenKind.OPENING_CBRACKET)) {
-                    return this.parseEnclosedExpressionSequence(TokenKind.OPENING_CBRACKET, TokenKind.CLOSING_CBRACKET, tokens)
-                } else {
-                    let expr = this.parseExpression(tokens)
-                    return [[expr], expr.metadata]
-                }
-
-            case "inline":
-                let token = tokens.peak()
-                if (token.kind === TokenKind.OPENING_CBRACKET) {
-                    throwWith(token.metadata, "An inline macro doesn't expect a body.")
-                }
-                return [[], { src: tokens.src, span: [tokens.loc(), tokens.loc()] }]
-        }
-    }
-
-    private parseMacroLimbs(tokens: TokenStream, name: string, macro: InternalMacroDeclaration): [Dictionary<AST[]>, Metadata] {
-        let { limbs, mode } = macro
+    private parseMacroLimbs(tokens: TokenStream, name: string, limbs: string[], inline: boolean): [Dictionary<AST[]>, Metadata] {
         let limbsASTs: Dictionary<AST[]> = {}
 
         let limbsIndex = 0
         let begin = tokens.loc()
         let end = tokens.loc()
-        while (tokens.is(TokenKind.NAME)) {
+        while (tokens.is(TokenKind.IDENTIFIER)) {
             let limbNameToken = tokens.next()
             let limbName = limbNameToken.value
 
@@ -260,21 +316,10 @@ export abstract class MicroParser {
                 else throwWith(metadata, `Macro '${name}' does not have a '${limbName}' limb. Perhaps you forgot a semicolon ?`)
             } else limbsIndex++
             
-            if (tokens.is(TokenKind.OPENING_CBRACKET)) {
-                switch (mode) {
-                    case "block":
-                        let [exprs, metadata] = this.parseEnclosedExpressionSequence(TokenKind.OPENING_CBRACKET, TokenKind.CLOSING_CBRACKET, tokens)
-                        limbsASTs[limbName] = exprs
-                        end = metadata.span[1]
-                        break
-
-                    case "inline":
-                        tokens.next()
-                        let expr = this.parseExpression(tokens)
-                        if (tokens.is(TokenKind.SEMICOLON)) throwWith(tokens.peak().metadata, "A single-expression body can't end with a semicolon.")
-                        end = tokens.expect(TokenKind.CLOSING_CBRACKET).metadata.span[1]
-                        limbsASTs[limbName] = [expr]
-                }
+            if (tokens.is(TokenKind.LEFT_CBRACKET) && !inline) {
+                let [exprs, metadata] = this.parseEnclosedExpressionSequence(TokenKind.LEFT_CBRACKET, TokenKind.RIGHT_CBRACKET, tokens)
+                limbsASTs[limbName] = exprs
+                end = metadata.span[1]
             } else {
                 let expr = this.parseExpression(tokens)
                 limbsASTs[limbName] = [expr]
@@ -286,16 +331,16 @@ export abstract class MicroParser {
     }
 
     private parseSilentMacro(tokens: TokenStream): AST {
-        let [body, metadata] = this.parseEnclosedExpressionSequence(TokenKind.OPENING_CBRACKET, TokenKind.CLOSING_CBRACKET, tokens)
+        let [body, metadata] = this.parseEnclosedExpressionSequence(TokenKind.LEFT_CBRACKET, TokenKind.RIGHT_CBRACKET, tokens)
         return this.makeMacro("", body, [], {}, metadata)
     }
 
     private parseParenthesizedExpression(tokens: TokenStream): AST {
-        let begin = tokens.expect(TokenKind.OPENING_PAR).metadata.span[0]
+        let begin = tokens.expect(TokenKind.LEFT_PAR).metadata.span[0]
         let end = begin
         let { tupleOp } = MicroParser
 
-        if (tokens.is(TokenKind.CLOSING_PAR)) {
+        if (tokens.is(TokenKind.RIGHT_PAR)) {
             end = tokens.next().metadata.span[1]
             return this.makeOperation(tupleOp, [], { src: tokens.src, span: [begin, end] })
         }
@@ -304,20 +349,20 @@ export abstract class MicroParser {
 
         if (tokens.is(TokenKind.SEMICOLON)) {
             tokens.next()
-            let args = this.parseExpressionSequence(tokens, TokenKind.CLOSING_PAR)
-            end = tokens.expect(TokenKind.CLOSING_PAR).metadata.span[1]
+            let args = this.parseExpressionSequence(tokens, TokenKind.RIGHT_PAR)
+            end = tokens.expect(TokenKind.RIGHT_PAR).metadata.span[1]
             return this.makeOperation(tupleOp, [ast, ...args], { src: tokens.src, span: [begin, end] })
         }
         
-        tokens.expect(TokenKind.CLOSING_PAR)
+        tokens.expect(TokenKind.RIGHT_PAR)
         return ast
     }
     
     private parseExplicitPack(tokens: TokenStream): AST {
-        let begin = tokens.expect(TokenKind.OPENING_BRACKET).metadata.span[0]
+        let begin = tokens.expect(TokenKind.LEFT_BRACKET).metadata.span[0]
         let operator = tokens.is(TokenKind.OPERATOR) ? tokens.next().value : MicroParser.listOp
-        let operands = this.parseExpressionSequence(tokens, TokenKind.CLOSING_BRACKET)
-        let end = tokens.expect(TokenKind.CLOSING_BRACKET).metadata.span[1]
+        let operands = this.parseExpressionSequence(tokens, TokenKind.RIGHT_BRACKET)
+        let end = tokens.expect(TokenKind.RIGHT_BRACKET).metadata.span[1]
 
         return this.makeOperation(operator, operands, { src: tokens.src, span: [begin, end] })
     }
@@ -329,21 +374,14 @@ export abstract class MicroParser {
         let operands: AST[]
         let end: number
 
-        switch (tokens.peak().kind) {
-            case TokenKind.OPENING_PAR:
-            case TokenKind.OPENING_BRACKET:
-            case TokenKind.OPENING_CBRACKET:
-            case TokenKind.OPERATOR:
-            case TokenKind.NAME:
-            case TokenKind.NUMBER:
-            case TokenKind.STRING:    
-                let operand = this.parseExpression(tokens, this.operators[operator].precedence)
-                operands = [operand]
-                end = operand.metadata.span[1]
-                break
-            default:
-                operands = []
-                end = operatorToken.metadata.span[1]
+        if (!(operator in this.operators)) throwWith(operatorToken.metadata, `Unknown operator ${operator}.`)
+        if (canStartExpression(tokens.peak())) {
+            let operand = this.parseExpression(tokens, this.operators[operator].precedence)
+            operands = [operand]
+            end = operand.metadata.span[1]
+        } else {
+            operands = []
+            end = operatorToken.metadata.span[1]
         }
 
         return this.makeOperation(operator, operands, { src: tokens.src, span: [begin, end] })
@@ -356,6 +394,7 @@ export abstract class MicroParser {
         while (true) {
             if (tokens.is(TokenKind.OPERATOR)) {
                 let op = tokens.peak().value
+                this.checkOperatorExists(op, tokens.peak().metadata)
                 if (this.operators[op].precedence <= minPrecedance) break 
                 tokens.next()
 
@@ -370,17 +409,19 @@ export abstract class MicroParser {
                 let metadata: Metadata = { src: tokens.src, span: [args[0].metadata.span[0], args[args.length-1].metadata.span[1]] }
                 leftSide = this.makeOperation(op, args, metadata)
 
-            } else if (tokens.is(TokenKind.OPENING_PAR)) {
+            } else if (tokens.is(TokenKind.LEFT_PAR)) {
+                this.checkOperatorExists(callOp, tokens.peak().metadata)
                 if (this.operators[callOp].precedence <= minPrecedance) break
 
-                let [args, argsMetadata] = this.parseEnclosedExpressionSequence(TokenKind.OPENING_PAR, TokenKind.CLOSING_PAR, tokens)
+                let [args, argsMetadata] = this.parseEnclosedExpressionSequence(TokenKind.LEFT_PAR, TokenKind.RIGHT_PAR, tokens)
                 let metadata: Metadata = { src: tokens.src, span: [leftSide.metadata.span[0], argsMetadata.span[1]] }
                 leftSide = this.makeOperation(callOp, [leftSide, ...args], metadata)
 
-            } else if (tokens.is(TokenKind.OPENING_BRACKET)) {
+            } else if (tokens.is(TokenKind.LEFT_BRACKET)) {
+                this.checkOperatorExists(indexOp, tokens.peak().metadata)
                 if (this.operators[indexOp].precedence <= minPrecedance) break
 
-                let [args, argsMetadata] = this.parseEnclosedExpressionSequence(TokenKind.OPENING_BRACKET, TokenKind.CLOSING_BRACKET, tokens)
+                let [args, argsMetadata] = this.parseEnclosedExpressionSequence(TokenKind.LEFT_BRACKET, TokenKind.RIGHT_BRACKET, tokens)
                 let metadata: Metadata = { src: tokens.src, span: [leftSide.metadata.span[0], argsMetadata.span[1]] }
                 leftSide = this.makeOperation(indexOp, [leftSide, ...args], metadata)
 
@@ -393,15 +434,17 @@ export abstract class MicroParser {
     }
 
     private parseOperand(tokens: TokenStream): AST {
-        switch (tokens.peak().kind) {
-            case TokenKind.STRING: return this.parseString(tokens)
-            case TokenKind.NAME: return this.parseNameOrMacro(tokens)
+        let token = tokens.peak()
+        switch (token.kind) {
+            case TokenKind.QUOTE: return this.parseString(tokens)
+            case TokenKind.IDENTIFIER: return this.parseNameOrMacro(tokens)
             case TokenKind.NUMBER: return this.parseNumber(tokens)
             case TokenKind.OPERATOR: return this.parseUnaryOrNullaryOperation(tokens)
-            case TokenKind.OPENING_PAR: return this.parseParenthesizedExpression(tokens)
-            case TokenKind.OPENING_BRACKET: return this.parseExplicitPack(tokens)
-            case TokenKind.OPENING_CBRACKET: return this.parseSilentMacro(tokens)
-            default: throwWith(tokens.peak().metadata, "An expression was expected.")
+            case TokenKind.LEFT_PAR: return this.parseParenthesizedExpression(tokens)
+            case TokenKind.LEFT_BRACKET: return this.parseExplicitPack(tokens)
+            case TokenKind.LEFT_CBRACKET: return this.parseSilentMacro(tokens)
+            case TokenKind.TICK: return this.parseLiteral(tokens)
+            default: throwWith(tokens.peak().metadata, `An expression was expected, found '${token.value}'.`)
         }
     }
 
@@ -414,7 +457,7 @@ export abstract class MicroParser {
         let body = this.parseExpressionSequence(tokens, TokenKind.EOF)
         return {
             type: "macro",
-            name: "<script>",
+            name: "script",
             metadata: { src, span: [0, src.length-1] },
             body,
             head: scriptArgs.map(arg => { return { type: "literal", value: arg, metadata: { src, span: [0,0] } } }),

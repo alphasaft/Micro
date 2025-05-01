@@ -6,7 +6,7 @@ Micro aims at finding a middle ground between those two solutions : while having
 
 For instance, suppose you want to design a grep-like command line interface interoperable with JS. Here's how it might look like if you tried to implement in pure JS :
 
-```
+```js
 let command = new Command("mygrep");
 
 let regexparg = command.newArgument("<regexp>")
@@ -34,10 +34,10 @@ command.bind(myGrepCallback)
 While here's a Micro script that could describe that :
 
 ```
-extern (myGrepCallback) from js;
+external myGrepCallback from js;
 
 
-command' mygrep {
+command mygrep calling myGrepCallback {
     argument ("<regexp>") {
         #expectedvaluetype regexp;
         #desc "The regexp to search for";
@@ -57,9 +57,7 @@ command' mygrep {
         #expectedvaluetype none;
         #desc "Enters debug mode."
     }
-
-    bind myGrepCallback;
 } 
 ```
 
-Easily readable, concise and clear, while also decoupled from the actual javascript implementation. Micro really shines whenever there is a need for an external user to write or read your code, because it allows for far more user-friendly, maintainable formats, while retaining every framework-related specifities. To get a glance of Micro's syntax, read the syntax reference in `docs/syntax.md`, and then the handbook to get started !
+Easily readable, concise and clear, while also decoupled from the actual javascript implementation. Micro really shines whenever there is a need for an external user to write or read your code, because it allows for far more user-friendly, maintainable formats, while retaining every framework-related specifities. To get a glance of Micro's syntax, read the syntax reference in `docs/syntax.md`, and then the `docs/handbook.md` to get started !
