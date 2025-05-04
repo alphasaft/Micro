@@ -72,7 +72,7 @@ export function assertOp(ast: AST, msg: string = "An operation was expected."): 
 }
 
 /** Asserts this operation ast matches the provided operator, throws otherwise with msg. */
-export function assertOpKind(ast: AST, name: string, msg: string = `A '${name}' operator was expected.`) {
+export function assertOpKind(ast: AST, name: string, msg: string = `A '${name}' operator was expected.`): asserts ast is OpAST {
     assertOp(ast, msg)
     if (ast.operator !== name) throwWith(ast.metadata, msg)
 }
@@ -101,27 +101,29 @@ export function assertLiteral(ast: AST, msg: string = "A literal was expected.")
     if (ast.type !== "literal") throwWith(ast.metadata, msg)
 }
 
-/** Asserts this ast is a '#name' operator, throws otherwise with msg. */
-export function assertName(ast: AST): asserts ast is OpAST {
-    assertOp(ast)
+/** Asserts this ast is a '#name' operator containing a single literal, throws otherwise with msg. */
+export function assertNameLiteral(ast: AST): asserts ast is OpAST {
     assertOpKind(ast, "#name")
+    assertArity(ast, 1)
+    assertLiteral(ast.operands[0])
 }
 
-/** Asserts this ast is a '#number' operator, throws otherwise with msg. */
+/** Asserts this ast is a '#number' operator containing a single literal, throws otherwise with msg. */
 export function assertNumber(ast: AST): asserts ast is OpAST {
-    assertOp(ast)
     assertOpKind(ast, "#number")
+    assertArity(ast, 1)
+    assertLiteral(ast.operands[0])
 }
 
-/** Asserts this ast is a '#string' operator, throws otherwise with msg. */
-export function assertString(ast: AST): asserts ast is OpAST {
-    assertOp(ast)
+/** Asserts this ast is a '#string' operator containing a single literal, throws otherwise with msg. */
+export function assertStringLiteral(ast: AST): asserts ast is OpAST {
     assertOpKind(ast, "#string")
+    assertArity(ast, 1)
+    assertLiteral(ast.operands[0])
 }
 
 /** Extracts `lit` out of ```[#name `lit`]``` as a string. */
 export function getLiteralOfName(ast: AST): string {
-    assertOp(ast)
     assertOpKind(ast, "#name")
     assertArity(ast, 1)
     let inner = ast.operands[0]
@@ -131,7 +133,6 @@ export function getLiteralOfName(ast: AST): string {
 
 /** Extracts `n` out of ```[#number `n`]``` as a number using parseFloat. */
 export function getLiteralOfNumber(ast: AST): number {
-    assertOp(ast)
     assertOpKind(ast, "#number")
     assertArity(ast, 1)
     let inner = ast.operands[0]
@@ -141,7 +142,6 @@ export function getLiteralOfNumber(ast: AST): number {
 
 /** Extracts `s` out of ```[#string `s`]``` as a string. */
 export function getLiteralOfString(ast: AST): string {
-    assertOp(ast)
     assertOpKind(ast, "#string")
     assertArity(ast, 1)
     let inner = ast.operands[0]

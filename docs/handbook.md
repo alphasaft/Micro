@@ -20,7 +20,6 @@ First, import the `MicroParser` class, subclass it, and write the following code
 ```js
 import { MicroParser } from "micro/parser";
 
-// Everything is duly documented if needed, go read the docs if something is unclear.
 class DemoParser extends MicroParser {
     constructor() {
         super({
@@ -169,7 +168,7 @@ class DemoReducer extends MicroReducer {
     globaMacroReducers = {
         'if': ({$}, { body, head: [condition], limbs: { "else": elseLimb } }) => {
             if ($(condition)) for (let stmt of body) $(stmt)
-            // Note elseLimb can be undefined if the else limb is ommited in script.
+            // Note elseLimb can be undefined if the else limb is omited in script.
             else for (let stmt of elseLimb ?? []) $(stmt)
         }
     }
@@ -199,7 +198,7 @@ A key feature of Micro is the ability to scope (and thereby restrict the use of)
 If you'd like to not completely override, but rather modify the behavior of an operator or a macro, you can use the first argument of the reducer (the `context`). Let's say you want a `verbose` macro that prints `Performing an addition !` whenever two things are added within its body. Here's what you would write :
 
 ```js
-['verbose'] = ({ $, operators }, { body }) => {
+'verbose': ({ $, operators }, { body }) => {
     let modifiedPlus = ([a,b]) => {
         console.log("Performing an addition !")
         return operators['+']([a,b])
@@ -310,11 +309,11 @@ Now, we have to (try to) write the reducers, and that's the moment we realize th
 pipe x |> f(_) |> _+1 |> console.log("Result : {_}");
 ```
 
-Since `pipe` is a macro, inside it we *do* have control over how things are evaluated, in which order and using which operators. So, let's do that :
+Since `pipe` is a macro, inside it we *do* have control over how things are evaluated, in which order and using which operators. So, let's do that by writing its reducer :
 
 
 ```js
-"pipe": ({ $, operators }, { head: [pipeExpr] }) => {
+({ $, operators }, { head: [pipeExpr] }) => {
     assertOpKind(pipeExpr, "|>")
     let pipe = pipeExpr.operands
     let n = pipe.length
@@ -332,7 +331,7 @@ Since `pipe` is a macro, inside it we *do* have control over how things are eval
 
 The new thing here is the use of `assertOpKind` and `.operands` to act directly on the AST instead of evaluating it. Here, we tell that inside our `pipe` macro there must be a single `|>` operation, and then we retrieve its operands without `$`-ing it. The remaining code is pretty self explainatory : We evaluate the first of these operands normally, and store the result in `value`. Then, we evaluate the next ones using a local `#name` implementation that returns the current value if that name is `_`, or delegates to the ambient implementation if that's not the case. Finally, the value of the last expression is returned. 
 
-When you need to implement a syntactic feature that does seem to be possible using only operator reducers, always think about wrapping it all inside an inline macro, and act on the AST instead. 
+When you need to implement a syntactic feature that does not seem to be possible using only operator reducers, always think about wrapping it all inside an inline macro, and act on the AST instead. 
 
 ### Syntactic typing
 
@@ -342,10 +341,14 @@ As your language grows bigger, you might want to have a stronger grasp on the sy
 import A from "file";
 ```
 
-Syntactically speaking, there's no problem implementing that ; here's a reducer that would do the job :
+Syntactically speaking, there's no problem implementing that ; here's a declaration and a reducer that would do the job :
 
 ```js
-"import": ({$}, { head: items, limbs: { "from": [source] } }) => {
+// Declaration. Recall `import A from "file"` is `import (A) from "file"` since `import` is an inline macro, hence the arity
+{ name: "import", arity: oneOrMore, kind: "inline", limbs: ["from"] }
+
+// Reducer
+({$}, { head: items, limbs: { "from": [source] } }) => {
     return actualImportImplementation(
         items.map(item => getLiteralOfName(item)),
         $(source)
@@ -364,15 +367,15 @@ Which isn't great, to say the least. It would be handy to carry around the infor
 Syntactic typing is implemented in a way that it's easy to use and so that there's no boilerplate code. We just have to import `typeSpecifier` from `micro/typing`, and declare a new root type specifier with `const lang = typeSpecifier()` (with `lang` standing for language, which is a standard name for the root type specifier). Then, we would write :
 
 ```js
-"import": (...) => {
+(...) => {
     return lang.stmt.imprt (actualImportImplementation(...))
 }
 ```
 
-Here, we just specify tell that `import`, syntactically speaking, is to be seen as asomething that returns a `lang.stmt.imprt`. You're free to choose any name you wish : `lang` is a special JS object that twists the way property access work (implemented using JS' `Proxy` class, if you're curious), so `lang.i.have.no.idea.what.i.m.writing` would not trigger any error and instead just define another type specificier called exactly that. Writing our `+` reducer, we would write : 
+Here, we just specify tell that `import`, syntactically speaking, is to be seen as a `lang.stmt.imprt`. You're free to choose any name you wish : `lang` is a special JS object that twists the way property access work (implemented using JS' `Proxy` class, if you're curious), so `lang.i.have.no.idea.what.i.m.writing` would not trigger any error and instead just define another type specificier called exactly that. For our `+` reducer, we would write : 
 
 ```js
-"+": ([a,b]) => lang.expr (a (lang.expr) + b (lang.expr))
+([a,b]) => lang.expr (a (lang.expr) + b (lang.expr))
 ```
 
 We tell that `+` returns a `lang.expr` value, and that its operands are also expected to be `lang.expr`. From now on, this :
@@ -384,7 +387,7 @@ We tell that `+` returns a `lang.expr` value, and that its operands are also exp
 will trigger an error : `import` returns a `lang.stmt.imprt` while `+` expects a `lang.expr`. Since `lang.stmt.imprt` does not **begin** with `lang.expr`, this crashes. I say begin, because `lang.expr.name` would match `lang.expr`. For type specifiers you use often, it's recommanded to alias them : `const expr = lang.expr` allows to rewrite `+` into :
 
 ```js
-"+": ([a,b]) => expr (a (expr) + b (expr))
+([a,b]) => expr (a (expr) + b (expr))
 ```
 
 which is a bit lighter. Specifying the types of your expressions clarifies the intent of your code, as well as how your operators and macros must be used. 
@@ -397,7 +400,9 @@ Also, syntactic types must be used to check the syntax, not the semantics ; it's
 
 ```js
 const number = lang.expr.number
-"+": ([a,b]) => number (a (number) + b (number))
+
+// + reducer
+([a,b]) => number (a (number) + b (number))
 ```
 
 Which works just fine until you want to have variables aboard. Indeed, that'd likely be `#name` :
@@ -405,7 +410,9 @@ Which works just fine until you want to have variables aboard. Indeed, that'd li
 ```js
 const variable = lang.expr.variable
 const literal = lang.expr.literal
-"#name": ([lit]) => variable (lookupTable.get(lit (literal)))
+
+// #name reducer
+([lit]) => variable (lookupTable.get(lit (literal)))
 ```
 
 But then `x+3` won't do, because `x` doesn't have the syntactic type `lang.expr.number` (and indeed, `x` itself isn't a number, although it might evaluate to one). Therefore, it's better to just require `+`'s operands are `lang.expr`, and then check that their values are numbers.
@@ -413,7 +420,7 @@ But then `x+3` won't do, because `x` doesn't have the syntactic type `lang.expr.
 
 ### Performance
 
-Checking every type at runtime must have a cost, you might think, and you'd be right : that overhead does exist and can become significant in some cases. This is a deliberate choice : Micro is **not** expected to be used in performance-critical applications. Rather, it is intended to expose a better interface for writing user-friendly domain specific code, and it is likely only small to medium-sized scripts will be written using it. Hence, clarity and simplicity were privilegiated over efficacity at all cost. Should your code be executed really quickly, you've got these two options :
+Checking every type at runtime must have a cost, you might think, and you'd be right : that overhead does exist and can become significant in some cases. This is a deliberate choice : Micro is **not** expected to be used in performance-critical applications. Rather, it is intended to expose a better interface for writing user-friendly domain specific code, and it is likely only small to medium-sized scripts will be written using it. Hence, clarity and simplicity were privilegiated over efficacity at all cost. However, should your code be executed really quickly, you've got these two options :
 
 * Not checking anything. Typing is used to ensure the correctness of scripts, but, in our example, adding `1` to `undefined` (which is likely the thing that untyped `import`s would return) would result in `NaN`. Then, that `NaN` value may, or may not, make something crash eventually. If you don't really care about the fact there's a possibility of some `NaN` value running around and/or expects the ones who'll write scripts not to mess around too much, then you might choose to proceed so.
 
@@ -438,7 +445,12 @@ script = ({$},  { body }) => {
     }
 
     let macroCheckers = { 
-        // ... 
+        "import": ({$}, { head, limbs: { "from": [source] } }) => {
+            for (let item of head) assertNameLiteral(head);
+            assertStringLiteral(source)
+            return lang.stmt.imprt (null);
+        },
+        // ...
     }
 
     for (let stmt of body) {

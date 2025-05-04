@@ -28,6 +28,7 @@ When you'll proceed to the next sections, you'll understand how exactly the scri
 Let's now delve into what syntactical features at are your disposal when designing a language.
 
 
+
 ## Basic syntax
 
 
@@ -61,7 +62,7 @@ foo; bar;               ## Names
 ```
 
 
-In addition to those primitives, Micro includes somethig known as literals. A literal is formed by prefixing a name with `'` :
+In addition to those primitives, Micro includes something known as literals. A literal is formed by prefixing a name with `'` :
 ```
 'lit;                   ## OK
 '`backquotes r cool`;   ## OK
@@ -202,7 +203,7 @@ macroName(arg1; ...; argn) {
     stmtn;
 };
 ```
-where `stmti` and `argi` has to be valid expressions. The argument list is often called the head, while the statement list is called the body. Since line breaks and spaces are irrelevant, this is fine as well :
+where `stmti` and `argi` have to be valid expressions. The argument list is often called the head, while the statement list is called the body. Since line breaks and spaces are irrelevant, this is fine as well :
 ```
 macro(
     arg1; 
@@ -210,6 +211,7 @@ macro(
     argn;
 ) { stmt1; ...; stmtn };
 ```
+
 
 Since macros are regular expressions, you can nest them, operate on them, etc :
 ```
@@ -248,7 +250,7 @@ loop { doThis() }
 
 If its body is made of one single statement, you can drop the brackets :
 ```
-loop() doThis() <=> loop() { doThis() };
+loop() doThis() <=> loop() { doThis(); };
 ```
 
 Both rules do hold at the same time :
