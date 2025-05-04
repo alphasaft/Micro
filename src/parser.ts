@@ -1,5 +1,5 @@
 import { Dictionary } from "./_util";
-import { AST, LiteralAST, MacroAST, OpAST, } from "./ast"
+import { AST, LiteralAST, MacroAST, OpAST, printAst, } from "./ast"
 import { MicroLexer, MicroToken as Token, MicroTokenKind as TokenKind, TokenStream, canStartExpression } from "./lexer"
 import { Metadata, throwWith } from "./metadata";
 
@@ -19,7 +19,7 @@ export let twoOrMore: arity = [2, Infinity]
 
 
 /** The expected syntax for the macro. See the syntax reference for more details. */
-type MacroKind = "block" | "inline" | "declaration";
+type MacroKind = "block" | "inline" | "declarative";
 
 /**
  * A macro declaration.
@@ -56,6 +56,7 @@ export abstract class MicroParser {
     static readonly tupleOp = "#tuple"
     static readonly callOp = "#call"
     static readonly indexOp = "#index"
+    static readonly defaultOp = "#default"
 
     private operators: Dictionary<InternalOpDeclaration>
     private macros: Dictionary<InternalMacroDeclaration>
@@ -120,11 +121,6 @@ export abstract class MicroParser {
         } else if (argcount > arity[1]) {
             throwWith(metadata, `Macro '${macro}' expects at most ${arity[0]} argument(s), got ${argcount}.`)
         }
-    }
-
-    private checkMacroHasLimb(metadata: Metadata, macro: string, limb: string) {
-        let limbs = this.macros[macro].limbs
-        if (!limbs.includes(limb)) throwWith(metadata, `Macro '${macro}' doesn't accept a limb called ${limb}.`)
     }
 
     private makeLiteral(token: Token): LiteralAST {
@@ -210,7 +206,7 @@ export abstract class MicroParser {
                 return this.parseBlockMacro(tokens)
             case "inline":
                 return this.parseInlineMacro(tokens)
-            case "declaration":
+            case "declarative":
                 return this.parseDeclarativeMacro(tokens)
         }
     }
@@ -234,7 +230,7 @@ export abstract class MicroParser {
         this.checkMacroArity(headMetadata, name, head.length)
 
         let body = tokens.is(TokenKind.LEFT_CBRACKET)
-            ? this.parseEnclosedExpressionSequence(TokenKind.RIGHT_PAR, TokenKind.LEFT_BRACKET, tokens)[0]
+            ? this.parseEnclosedExpressionSequence(TokenKind.LEFT_CBRACKET, TokenKind.RIGHT_CBRACKET, tokens)[0]
             : [this.parseExpression(tokens)]
 
         let [limbs, limbsMetadata] = this.parseMacroLimbs(tokens, name, macroDeclaration.limbs, false)
@@ -396,15 +392,15 @@ export abstract class MicroParser {
                 let op = tokens.peak().value
                 this.checkOperatorExists(op, tokens.peak().metadata)
                 if (this.operators[op].precedence <= minPrecedance) break 
-                tokens.next()
 
                 let currentOp = op
                 let packingOp = op
                 let args = [leftSide]
                 while (currentOp === packingOp) {
+                    tokens.next()
                     args.push(this.parseExpression(tokens, this.operators[op].precedence))
                     if (!tokens.is(TokenKind.OPERATOR)) break;
-                    currentOp = tokens.next().value
+                    currentOp = tokens.peak().value
                 }
                 let metadata: Metadata = { src: tokens.src, span: [args[0].metadata.span[0], args[args.length-1].metadata.span[1]] }
                 leftSide = this.makeOperation(op, args, metadata)

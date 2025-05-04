@@ -1,5 +1,4 @@
 import { Metadata, throwWith } from "./metadata"
-import { between } from "./_util"
 
 export enum MicroTokenKind {
     SEMICOLON,
@@ -82,8 +81,6 @@ export class MicroLexer {
     private static readonly COMMENT_END = "-#"
     private static readonly WHITESPACE_CHARS = "\n\t "
     private static readonly OPERATOR_CHARS = "&|~^@=+-*%!/:.,?!<>"
-    private static readonly zeroCC = '0'.charCodeAt(0)
-    private static readonly nineCC = '9'.charCodeAt(0)
 
     private static readonly CONTROL = {
         "'": MicroTokenKind.TICK,
@@ -115,7 +112,7 @@ export class MicroLexer {
     }
 
     private isNumber(src: string, i: number) {
-        return !this.isEOF(src, i) && between(MicroLexer.zeroCC, MicroLexer.nineCC, src.charCodeAt(i))
+        return !this.isEOF(src, i) && !isNaN(parseInt(src[i]))
     }
 
     private isOperatorFirstChar(src: string, i: number) {

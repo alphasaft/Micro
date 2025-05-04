@@ -1,12 +1,26 @@
 
 # MICRO SYNTAX REFERENCE  
 
-We describe here every syntactic feature of Micro. Since Micro syntax has no semantics attached to it, so what we're discussing purely is how Micro parses expressions, and nothing else.
+"What is that syntax reference supposed to be ? Am I about to learn a new language ?", might be respectively the first and second question that comes to your mind, and I'm here to answer them both - but not in the right order. Are you about to learn a new language ? Well, yes and no. In a sense, you're about to learn plenty of new languages at once. Micro is a set of syntactic rules, that scripts written using it must follow ; until there, it's just a normal language. The catch is that these syntactic rules are just... well, let's say they're very generic. The Micro library allows you to refine them to obtain a concrete syntax, and, once it's done - and only then - will you get a language in the most common acceptance of that term. Which brings us to what that syntax reference is supposed to be. It just describes those generic syntax, staying vague enough to allow for high customization, yet narrow enough to ensure that a script can be unambiguously parsed without much help from you. 
+
+Let's illustrate that. Very soon, you'll read things like "expressions are made of operators bounding operators together". This is the abstract syntactic rule. Now, it's up to you to define whose operators you want to use. Let's say you chose `+` and `*`, and told Micro `*` goes before `+`. It demanded very little endeavor from you to do that - or at least, I hope so -, but that's everything Micro needed to be able to know how to parse expressions. Those generic rules lay out what is possible within Micro's framework, and it is up to you to put the final piece into the puzzle, by specifying what version of those rules you want to follow.
+
+Without further ado, let's get started !
 
 
 ## Basic syntax
 
-Comments start with `##` and end at the line break, or are wrapped inside a `#- -#` pair for multiline comments.
+
+A Micro script is a sequence of expressions, separated by semicolons. The last semicolon of a script is optional (and, generally speaking, the last semicolon of everything is). Line breaks and spaces are irrelevant. Expressions are made out of operators, binding together operands : 
+
+```
+## This is a valid script
+3-2;
+"hello" + " world " + "!";
+a || b@c;                  
+```
+
+As you have noticed, comments start with `##` and end at the line break. They can also be multiline comments wrapped inside a `#- -#` pair.
 ```
 ## This is a comment
 #- 
@@ -17,14 +31,6 @@ this
 -#
 ```
 
-A Micro script is a sequence of expressions, separated by semicolons. The last semicolon of a script is optional (and, generally speaking, the last semicolon of everything is). Line breaks and spaces are irrelevant.
-
-```
-## This is a valid script
-3-2;
-"hello" + " world " + "!";
-a || b@c;                  
-```
 
 The smallest building blocks for creating expressions are the primitives. The available primitives are strings, numbers and names. Backquotes allow to create names that contain spaces and special characters (in fact, anywhere a series of letters of some sort is expected, you can provided a backquoted expression instead).
 ```
@@ -133,7 +139,7 @@ Note that the thing that's called/indexed can be anything :
 ("hello, " + "world !")[0] <=> [#index "hello, "+"world !";0];
 ```
 
-The precedence of #call and #index respectively are used to determine what is called/indexed For instance, if + has lower precedence than #index, then :
+The precedence of #call and #index respectively are used to determine what is called/indexed. For instance, if + has lower precedence than #index, then :
 ```
 a+b[0] <=> a+(b[0])
 ```
@@ -157,13 +163,13 @@ The `#string` operator differs a bit from the two others in the fact it has addi
 "Hi, {name} !"  <=>  [#string '`Hi, `; name; '` !`]
 ```
 
-Due to how this is implemented, a call to `#string` that emanated from a string formatting template always begins and ends with a literal, even if said literals must be empty to comply with that rule :
+Due to how it is implemented, a call to `#string` that emanated from a string formatting template always begins and ends with a literal, even if said literals must be empty to comply with that rule :
 
 ```
 "{name}"  <=>  [#string '``; name; '``];
 ```
 
-In the end, it all boils down to literals, which can be seen as the fundamental building block of Micro scripts. And speaking of blocks: 
+In the end, it all boils down to literals, which can be seen as the fundamental building block of Micro scripts. And speaking of blocks : 
 
 
 ## Block macros
@@ -177,7 +183,7 @@ macroName(arg1; ...; argn) {
     stmtn;
 };
 ```
-`stmti` and `argi` must be valid expressions, but there's no additionnal requirements for them. The argument list is often called the head, while the statement list is called the body. Line breaks and spaces are irrelevant, so this is fine as well :
+`stmti` and `argi` must be valid expressions, but there's no additionnal requirements for them. The argument list is often called the head, while the statement list is called the body. Since line breaks and spaces are irrelevant, this is fine as well :
 ```
 macro(
     arg1; 
@@ -186,7 +192,7 @@ macro(
 ) { stmt1; ...; stmtn };
 ```
 
-AS with any operand, you can nest them, operate on them, and so on :
+Since macros are regular expression, you can nest them, operate on them, etc :
 ```
 if (false) {            ##
     if (true) {         ##
@@ -198,7 +204,7 @@ if (false) {            ##
 ```
 
 
-Additionnaly, a macro can be followed by one or more limbs. These are additionnal blocks of code preceded by a word :
+Additionnaly, a macro can be followed by one or more limbs. These are additionnal blocks of code preceded by an identifier :
 ```
 if (true) {
     doSomething();      ## The standard macro body
@@ -215,9 +221,11 @@ try { } catch { } finally { };  ## OK
 try { } finally { } catch { };  ## NO
 ```
 
-Micro will implicitely consider any declared but missing limb to be present, with an empty body :
+If some limb is absent, it is not considered an error. Instead, the corresponding limb will be `undefined` when handed to the macro reducer.
 ```
-if (true) { ... } <=> if (true) { ... } else {}
+## Not the same
+if (true) { ... } 
+if (true) { ... } else {}
 ```
 
 
@@ -238,8 +246,9 @@ loop doThis();  ## OK
 
 However, it is not legal to drop the `{}` if the body is empty.
 ```
-loop {};  ## OK
-loop;     ## NO
+loop {};        ## OK
+loop (true);    ## NO 
+loop;           ## NO
 ```
 
 
@@ -255,7 +264,7 @@ Using a pair of curly brackets alone is understood as invoking a macro named `''
 {};
 ```
 
-Just like a normal block macro, statements can be put inside. These will form the body of the macro
+Just like a normal block macro, statements can be put inside. These will form the body of the macro :
 ```
 { x;y;z };
 ```

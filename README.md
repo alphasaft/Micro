@@ -41,22 +41,22 @@ command mygrep calling myGrepCallback {
     argument ("<regexp>") {
         #expectedvaluetype regexp;
         #desc "The regexp to search for";
-    }
+    };
 
     option (-f; --file) {
         #expectedvaluetype filename;
         #desc "Searches in a file for the provided regexp.";
-    }
+    };
 
     option (--inline) {
         #expectedvaluetype string;
         #desc "Searches in a string for the provided regexp.";
-    }
+    };
 
     option (--debug) {
         #expectedvaluetype none;
         #desc "Enters debug mode."
-    }
+    };
 } 
 ```
 
