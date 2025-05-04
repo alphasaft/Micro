@@ -1,11 +1,30 @@
 
 # MICRO SYNTAX REFERENCE  
 
-"What is that syntax reference supposed to be ? Am I about to learn a new language ?", might be respectively the first and second question that come to your mind, and I'm here to answer them both - but not in the right order. Are you about to learn a new language ? Well, yes and no. In a sense, you're about to learn plenty of new languages at once. Micro is a set of syntactic rules, that scripts written using it must follow ; until there, it's just a normal language. The catch is that these syntactic rules are just... well, let's say they're very generic. The Micro library allows you to refine them to obtain a concrete syntax, and, once it's done - and only then - will you get a language in the most common acceptance of that term. Which brings us to what that syntax reference is supposed to be. It just describes those generic syntax, staying vague enough to allow for high customization, yet narrow enough to ensure that a script can be unambiguously parsed without much help from you. 
+"What is that syntax reference supposed to be ? Am I about to learn a new language ?", might be respectively the first and second question that come to your mind, and I'm here to answer them both - but not in the right order. Are you about to learn a new language ? Well, yes and no. In a sense, you're about to learn plenty of new languages at once. Micro is a set of syntactic rules, that scripts written using it must follow them ; until there, it's just a normal language. The catch is that these syntactic rules are... well, let's say they're very generic. The Micro library allows you to refine them to obtain a concrete syntax (how exactly is detailed in the `./handbook.md`), and, once it's done - and only then - will you get a language in the most common acceptance of that term. Which brings us to what that syntax reference is supposed to be. It just describes those generic syntax, staying vague enough to allow for high customization, yet narrow enough to ensure that a script can be unambiguously parsed without much help from you. 
 
-Let's illustrate that. Very soon, you'll read things like "expressions are made of operators bounding operators together". This is the abstract syntactic rule. Now, it's up to you to define whose operators you want to use. Let's say you chose `+` and `*`, and told Micro `*` goes before `+`. It demanded very little endeavor from you to do that - or at least, I hope so -, but that's everything Micro needed to be able to know how to parse expressions. Those generic rules lay out what is possible within Micro's framework, and it is up to you to put the final piece into the puzzle, by specifying what version of those rules you want to follow.
+## A gentle example
 
-Without further ado, let's get started !
+Let's illustrate a little bit the abstract, unclear mess I served you above. Suppose we want to write a calculator DSL, i.e a simple language that is able to perform mathematical operations. Then, here's a syntax we could choose :
+
+* `+`, `-`, `*`, and `/` will be used to add, substract, etc,
+* `def` will be used to declare mathematical functions,
+* We'll support `return`-ing from those functions, and toss in some control flow.
+
+Here's an example of a script :
+
+```
+def fact(n) {
+    if (n > 0) return n*fact(n-1)
+    else return 1
+};
+
+fact(fact(4));  ## Quite a lot, actually !
+```
+
+When you'll proceed to the next sections, you'll understand how exactly the script is built, but, for now, let's just try to understand how it works intuitively. When designing our language with the Micro framework, we'll have to specify that we want to bring the possibility to use `+`, `-`, ..., as well as language structures named `def`, `if` and `return` in our scripts. And... that's done ! Of course, we'll have to specify the actual behavior of these features later, but it's already enough for Micro to know to read your scripts, because it has an already implemented notion of how structures and operators look like : for instance, it knows that if a structure is a declaration of some kind, then the syntax looks like `declarationType nameOfTheThing(args) { statements }` ; this allows to design languages frighteningly quickly, without giving up on expressiveness. 
+
+Let's now delve into what syntactical features at are your disposal when designing a language.
 
 
 ## Basic syntax
@@ -49,7 +68,7 @@ In addition to those primitives, Micro includes somethig known as literals. A li
 
 
 
-There's two kind of operators, that differ only by their syntax : symbolic operators (any combination of these symbols : `&|~^@=+-*%!/:.,?!<>`), and hash operators. These start with a `#` (hence the name), followed by one or more letters. For instance, this is the hash operator `#in` applied to `0` and `list` :
+There's two kind of operators, that differ only by their syntax : symbolic operators (any combination of these symbols : `&|~^@=+-*%/:.,?!<>`), and hash operators. These start with a `#` (hence the name), followed by one or more letters. For instance, this is the hash operator `#in` applied to `0` and `list` :
 ```
 0 #in list;
 ```
@@ -81,7 +100,7 @@ Micro packs together operands to a same operator, so `1+2+3` is neither `(1+2)+3
 ```
 
 
-Micro allows unary operators in a prefix form, as well as applied to nothing :
+Micro allows unary operators in a prefix form, as well as nullary operators (zero operands) :
 ```
 #print 0;   ## OK
 ?;          ## OK
@@ -172,10 +191,9 @@ Due to how it is implemented, a call to `#string` that emanated from a string fo
 In the end, it all boils down to literals, which can be seen as the fundamental building block of Micro scripts. And speaking of blocks : 
 
 
-## Block macros
+## Macros
 
-
-Macros are yet another kind of operand, which come in two flavors, the first of which are block macros. A block macro is, as its name suggest, a block of code, wrapped inside a pair of brackets.  The syntax is the following :
+Until there, we've only seem pretty standard - and simple - expressions. But there's more to Micro than just numbers, strings and names, as Micro comes with something called macros. Macros are yet another kind of operand (meaning everywhere you could put a number, a string or a name, you can use a macro instead), which come in three flavors, the first of which are block macros. A block macro is, as its name suggest, a block of code, wrapped inside a pair of brackets.  The syntax is the following :
 ```
 macroName(arg1; ...; argn) {
     stmt1;
@@ -183,7 +201,7 @@ macroName(arg1; ...; argn) {
     stmtn;
 };
 ```
-`stmti` and `argi` must be valid expressions, but there's no additionnal requirements for them. The argument list is often called the head, while the statement list is called the body. Since line breaks and spaces are irrelevant, this is fine as well :
+where `stmti` and `argi` has to be valid expressions. The argument list is often called the head, while the statement list is called the body. Since line breaks and spaces are irrelevant, this is fine as well :
 ```
 macro(
     arg1; 
@@ -192,7 +210,7 @@ macro(
 ) { stmt1; ...; stmtn };
 ```
 
-Since macros are regular expression, you can nest them, operate on them, etc :
+Since macros are regular expressions, you can nest them, operate on them, etc :
 ```
 if (false) {            ##
     if (true) {         ##
@@ -219,13 +237,6 @@ try { };                        ## OK
 try { } finally { };            ## OK
 try { } catch { } finally { };  ## OK
 try { } finally { } catch { };  ## NO
-```
-
-If some limb is absent, it is not considered an error. Instead, the corresponding limb will be `undefined` when handed to the macro reducer.
-```
-## Not the same
-if (true) { ... } 
-if (true) { ... } else {}
 ```
 
 
@@ -280,9 +291,9 @@ But this is highly unclear, and it is made possible only because of how ``` ` ``
 
 ## Other macro forms
 
-There exist two more macro syntactic form, which are also useful in a variety of situation.
+There exist two more macro forms, which are also useful in a variety of situation.
 
-Inline macros, so called because they almost always are one-liners, are much shorter than their block counterparts. They don't have a body, only a head.
+The first of these are inline macros, so called because they almost always are one-liners, are much shorter than their block counterparts. They don't have a body, only a head.
 ```
 return (0)                      ## OK
 return (true; false);           ## OK
@@ -294,7 +305,7 @@ return { "hi"; "hello" };       ## OK, but actually calls the silent macro.
 They can have limbs, but each limb must be a single expression.
 ```
 import (a) from "file";                  
-import (d) from { "file1"; "file2" };    ## OK, but it is parsed as `... from ({ "file1"; "file2" })`, i.e as a silent macro invokation.
+import (d) from { "file1"; "file2" };    ## Same as above : it's a call to the silent macro
 ```
 
 The parentheses can be dropped if the head :

@@ -130,15 +130,15 @@ class DemoReducer extends MicroReducer {
     script = ({$}, { body }) => { for (let stmt of body) $(stmt) };
 
     globalOpReducers = {
-        ['+'] = ([a,b]) => a+b;
-        ['-'] = ([a,b]) => a-b;
-        ['*'] = ([a,b]) => a*b;
-        ['/'] = ([a,b]) => a/b;
-        ['#number'] = l => parseFloat(l);
+        '+': ([a,b]) => a+b;
+        '-': ([a,b]) => a-b;
+        '*': ([a,b]) => a*b;
+        '/': ([a,b]) => a/b;
+        '#number': l => parseFloat(l);
     }
 
     globalMacroReducers = {
-        ['if'] = ({$}, { body, head: [condition] }) => {
+        'if': ({$}, { body, head: [condition] }) => {
             if ($(condition)) for (let statement of body) $(stmt)
         };
     }
@@ -167,9 +167,10 @@ class DemoReducer extends MicroReducer {
     // -- snip --
     
     globaMacroReducers = {
-        ['if'] = ({$}, { body, head: [condition], limbs: { "else": elseLimb } }) => {
+        'if': ({$}, { body, head: [condition], limbs: { "else": elseLimb } }) => {
             if ($(condition)) for (let stmt of body) $(stmt)
-            else for (let stmt of elseLimb) $(stmt)
+            // Note elseLimb can be undefined if the else limb is ommited in script.
+            else for (let stmt of elseLimb ?? []) $(stmt)
         }
     }
 }
