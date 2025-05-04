@@ -56,7 +56,7 @@ export abstract class MicroParser {
     static readonly tupleOp = "#tuple"
     static readonly callOp = "#call"
     static readonly indexOp = "#index"
-    static readonly defaultOp = "#default"
+    static readonly defaultOp = "#operator"
 
     private operators: Dictionary<InternalOpDeclaration>
     private macros: Dictionary<InternalMacroDeclaration>
