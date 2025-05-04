@@ -8,6 +8,7 @@
 Let's illustrate a little bit the abstract, unclear mess I served you above. Suppose we want to write a calculator DSL, i.e a simple language that is able to perform mathematical operations. Then, here's a syntax we could choose :
 
 * `+`, `-`, `*`, and `/` will be used to add, substract, etc,
+* `<` and its associates will be used for comparisons,
 * `def` will be used to declare mathematical functions,
 * We'll support `return`-ing from those functions, and toss in some control flow.
 
@@ -22,7 +23,7 @@ def fact(n) {
 fact(fact(4));  ## Quite a lot, actually !
 ```
 
-When you'll proceed to the next sections, you'll understand how exactly the script is built, but, for now, let's just try to understand how it works intuitively. When designing our language with the Micro framework, we'll have to specify that we want to bring the possibility to use `+`, `-`, ..., as well as language structures named `def`, `if` and `return` in our scripts. And... that's done ! Of course, we'll have to specify the actual behavior of these features later, but it's already enough for Micro to know to read your scripts, because it has an already implemented notion of how structures and operators look like : for instance, it knows that if a structure is a declaration of some kind, then the syntax looks like `declarationType nameOfTheThing(args) { statements }` ; this allows to design languages frighteningly quickly, without giving up on expressiveness. 
+When you'll proceed to the next sections, you'll understand how exactly the script is built, but, for now, let's just try to understand how it works intuitively. When designing our language with the Micro framework, we'll have to specify that we want to bring the possibility to use `+`, `-`, ..., as well as language structures named `def`, `if` and `return` in our scripts. And... that's done ! Of course, we'll have to specify the actual behavior of these features later, but telling their names to the framework is already enough for Micro to know to read your scripts, because it has an already implemented notion of how structures and operators look like : for instance, it knows that if a structure is a declaration of some kind, then the syntax looks like `declarationType nameOfTheThing(args) { statements }` ; this allows to design languages frighteningly quickly, without giving up on expressiveness. 
 
 Let's now delve into what syntactical features at are your disposal when designing a language.
 
