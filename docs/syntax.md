@@ -1,14 +1,14 @@
 
 # MICRO SYNTAX REFERENCE  
 
-"What is that syntax reference supposed to be ? Am I about to learn a new language ?", might be respectively the first and second question that come to your mind, and I'm here to answer them both - but not in the right order. Are you about to learn a new language ? Well, yes and no. In a sense, you're about to learn plenty of new languages at once. Micro is a set of syntactic rules, that scripts written using it must follow them ; until there, it's just a normal language. The catch is that these syntactic rules are... well, let's say they're very generic. The Micro library allows you to refine them to obtain a concrete syntax (how exactly is detailed in the `./handbook.md`), and, once it's done - and only then - will you get a language in the most common acceptance of that term. Which brings us to what that syntax reference is supposed to be. It just describes those generic syntax, staying vague enough to allow for high customization, yet narrow enough to ensure that a script can be unambiguously parsed without much help from you. 
+"What is that syntax reference supposed to be ? Am I about to learn a new language ?", might be respectively the first and second question that come to your mind, and I'm here to answer them both - but not in the right order. Are you about to learn a new language ? Well, yes and no. In a sense, you're about to learn plenty of new languages at once. Micro is a set of syntactic rules, that scripts written using it must follow them ; until there, it's just a normal language. The catch is that these syntactic rules are... well, let's say they're very generic. The Micro library allows you to refine them to obtain a concrete syntax, and, once it's done - and only then - will you get a language in the most common acceptance of that term. Which brings us to what that syntax reference is supposed to be. It just describes those generic syntax rules, staying vague enough to allow for high customization, yet narrow enough to ensure that a script can be unambiguously parsed without much help from you. 
 
 ## A gentle example
 
 Let's illustrate a little bit the abstract, unclear mess I served you above. Suppose we want to write a calculator DSL, i.e a simple language that is able to perform mathematical operations. Then, here's a syntax we could choose :
 
 * `+`, `-`, `*`, and `/` will be used to add, substract, etc,
-* `<` and its associates will be used for comparisons,
+* `<` & Co. will be used for comparisons,
 * `def` will be used to declare mathematical functions,
 * We'll support `return`-ing from those functions, and toss in some control flow.
 
@@ -32,13 +32,13 @@ Let's now delve into what syntactical features at are your disposal when designi
 ## Basic syntax
 
 
-A Micro script is a sequence of expressions, separated by semicolons. The last semicolon of a script is optional (and, generally speaking, the last semicolon of everything is). Line breaks and spaces are irrelevant. Expressions are made out of operators, binding together operands : 
+At its core, any Micro script consists of a sequence of expressions, separated by semicolons. The last semicolon of a script is optional (and, generally speaking, the last semicolon of everything is). Line breaks and spaces are irrelevant. Expressions are made out of operators, binding together literals ; said literals are strings of the form `'lit` or ``` '`a longer literal` ``` (a single quotation mark followed by any sequence of caracters enclosed in backquotes) :
 
 ```
 ## This is a valid script
-3-2;
-"hello" + " world " + "!";
-a || b@c;                  
+'x-'y;
+'`hello` + '` world ` + '`!`;
+'a || 'b@'c;                  
 ```
 
 As you have noticed, comments start with `##` and end at the line break. They can also be multiline comments wrapped inside a `#- -#` pair.
@@ -53,32 +53,48 @@ this
 ```
 
 
-The smallest building blocks for creating expressions are the primitives. The available primitives are strings, numbers and names. Backquotes allow to create names that contain spaces and special characters (in fact, anywhere a series of letters of some sort is expected, you can provided a backquoted expression instead).
-```
-"MICRO"; "micro";       ## Strings
-0;  3.2;                ## Numbers
-foo; bar;               ## Names
-`he he he !`;           ## Still a name
-```
 
-
-In addition to those primitives, Micro includes something known as literals. A literal is formed by prefixing a name with `'` :
+There's two kind of operators, that differ only by their syntax : symbolic operators (any combination of these symbols : `&|~^@=+-*%/:.,?!<>`), and hash operators. These start with a `#` (hence the name), followed by one or more letters. For instance, this is the hash operator `#in` applied to the literals `'x` and `'list` :
 ```
-'lit;                   ## OK
-'`backquotes r cool`;   ## OK
-```
-
-
-
-There's two kind of operators, that differ only by their syntax : symbolic operators (any combination of these symbols : `&|~^@=+-*%/:.,?!<>`), and hash operators. These start with a `#` (hence the name), followed by one or more letters. For instance, this is the hash operator `#in` applied to `0` and `list` :
-```
-0 #in list;
+'x #in 'list;
 ```
 
 You can use hash operators just like normal operators, everywhere they appear :
 ```
-condition = 0 #in list && 1 #notin list;
+'condition = 'x #in 'list && 'y #notin 'list;
 ```
+
+Micro allows unary operators in a prefix form, as well as nullary operators (zero operands) :
+```
+#print 0;   ## OK
+?;          ## OK
+```       
+
+If there's an ambiguity, enclose the problematic operator in square brackets or in parentheses :
+```
+? || 3 <=> (? (|| 3));  ## Probably not what was intended
+[?] || 3                ## OK
+(?) || 3                ## OK
+```
+
+
+Micro "packs" together operands to a same operator, so `1+2+3` is neither `(1+2)+3`, nor `1+(2+3)`, but the operator `+` applied to `1`, `2` and `3` simultaneously, effectively turning + into a ternary (3-operands) operator here. The explicit pack syntax allows to rewrite it in a more compact form if needed.
+```
+[#op a;b;c;...;z] <=> a #op b #op c #op ... #op z
+```
+The difference between both forms is purely syntactic.
+
+
+## Primitives
+
+Since the `'lit` syntax can be quite clumsy, Micro provides syntactic sugar to ease up the burden, by introducing primitives. Their name is a bit misleading : the true (and only) primitive building block of Micro are literals ; primitives, are, however, some kind a middle ground between the very low-level literals and more complex code structures.
+
+Micro ships three kind of primitives : string, numbers, and names. Using a primitive implicitely generates an specific operation wrapping a literal :
+- Strings, like `"hello world"`, are sequences of caracters enclosed in double quotation marks. They are translated to a call to a special hash operator, `#string`, with the string as a literal as its sole argument ; so, here, `"hello world"` is the same as ```[#string '`hello world`]```.
+- Numbers (a term that regroups both integers and floats), like `0`, `3.1415` or `.42`, are translated as a call to `#number`, so that `0` is actually ```[#number '`0`]```.
+- Names (known as identifiers in other langages, although there's slight differences we'll cover later), like `foo` or `bar`, are translated as a call to `#name`. `meaning_of_life` is hence understood as ```[#name 'meaning_of_life]```. Just like with literals, you can use backquotes if you need names containing special caracters.
+
+With these rules, `x = y+1`, for instance, becomes under the hood ```[#name 'x] = [#name 'y] + [#number '`0`]```. Even if it's not recommended, explicitely using `#string`, `#name` and `#number` in a script is perfectly legal.
 
 
 ## Precedence and arity
@@ -94,27 +110,6 @@ If `#add` and `#sub` have the same precedence, the leftmost one always wins :
 1 #add 2 #sub 3 <=> (1 #add 2) #sub 3;
 1 #sub 2 #add 3 <=> (1 #sub 2) #add 3;
 ```
-
-
-Micro packs together operands to a same operator, so `1+2+3` is neither `(1+2)+3`, nor `1+(2+3)`, but the operator `+` applied to `1`, `2` and `3` simultaneously, effectively turning + into a ternary (3-operands) operator here. The explicit pack syntax is handy syntactic sugar meaning the exact same thing :
-```
-[#op a;b;c;...;z] <=> a #op b #op c #op ... #op z
-```
-
-
-Micro allows unary operators in a prefix form, as well as nullary operators (zero operands) :
-```
-#print 0;   ## OK
-?;          ## OK
-```       
-
-If there's an ambiguity, enclose the problematic operator in square brackets or in parentheses :
-```
-? || 3 <=> (? (|| 3));  ## Probably not what was intended
-[?] || 3                ## OK
-(?) || 3                ## OK
-```
-
 
 Micro also enforces operator arity, which is yet another complicated word to mean 'how much operands an operator accepts'. So if + is declared with an arity of 2 :
 ```
@@ -154,31 +149,23 @@ array[0] <=> [#index array;0] <=> array #index 0;
 array[] <=> [#index array];
 ```
 
-Note that the thing that's called/indexed can be anything :
+Note that the thing that's called/indexed can be any valid expression :
 ```
 (obj.method)(x) <=> [#call object.method;x];
 ("hello, " + "world !")[0] <=> [#index "hello, "+"world !";0];
 ```
 
-The precedence of #call and #index respectively are used to determine what is called/indexed. For instance, if + has lower precedence than #index, then :
+The precedence of `#call` and `#index` respectively are used to determine what is called/indexed. For instance, if + has lower precedence than `#index`, then :
 ```
 a+b[0] <=> a+(b[0])
 ```
 
-But if . has higher precedence than #call, then :
+But if `.` has higher precedence than `#call`, then :
 ```
 a.b() <=> (a.b)()
 ```
 
-
-In fact, primitives also are implicit operators, called respectively `#number`, `#name` and `#string` :
-```
-0       <=> [#number '`0`];
-x       <=> [#name 'x];
-"hi !"  <=> [#string '`hi !`];
-```
-
-The `#string` operator differs a bit from the two others in the fact it has additionnal semantics. Should string formatting be used, it will get additionnal arguments :
+Like we've seen, primitives also are implicit operators. `#string` differs a bit from the two others in the fact it got additionnal semantics. Should string formatting be used, it will get additionnal arguments :
 
 ```
 "Hi, {name} !"  <=>  [#string '`Hi, `; name; '` !`]
@@ -187,15 +174,13 @@ The `#string` operator differs a bit from the two others in the fact it has addi
 Due to how it is implemented, a call to `#string` that emanated from a string formatting template always begins and ends with a literal, even if said literals must be empty to comply with that rule :
 
 ```
-"{name}"  <=>  [#string '``; name; '``];
+"{expr}"  <=>  [#string '``; expr; '``];
 ```
-
-In the end, it all boils down to literals, which can be seen as the fundamental building block of Micro scripts. And speaking of blocks : 
 
 
 ## Macros
 
-Until there, we've only seem pretty standard - and simple - expressions. But there's more to Micro than just numbers, strings and names, as Micro comes with something called macros. Macros are yet another kind of operand (meaning everywhere you could put a number, a string or a name, you can use a macro instead), which come in three flavors, the first of which are block macros. A block macro is, as its name suggest, a block of code, wrapped inside a pair of brackets.  The syntax is the following :
+Until there, we've only seem pretty standard - and simple - expressions, built out of literals and operators. But there's more to Micro than just numbers, strings and names, as it comes with something called macros. Macros are yet another kind of operand (meaning everywhere you could put a number, a string or a name, you can use a macro instead), which come in three flavors, the first of which are block macros. A block macro is, as its name suggest, a block of code, wrapped inside a pair of brackets.  The syntax is the following :
 ```
 macroName(arg1; ...; argn) {
     stmt1;
@@ -241,7 +226,6 @@ try { } finally { };            ## OK
 try { } catch { } finally { };  ## OK
 try { } finally { } catch { };  ## NO
 ```
-
 
 Block macro syntax supports some syntactic sugar. If the head of a block macro is empty, then the parentheses are optional :
 ```
@@ -294,9 +278,9 @@ But this is highly unclear, and it is made possible only because of how ``` ` ``
 
 ## Other macro forms
 
-There exist two more macro forms, which are also useful in a variety of situation.
+There exist two more macro forms, which are also useful in a variety of situations.
 
-The first of these are inline macros, so called because they almost always are one-liners, are much shorter than their block counterparts. They don't have a body, only a head.
+The first of these are inline macros, so called because they almost always are one-liners, much shorter than their block counterparts. They don't have a body, only a head.
 ```
 return (0)                      ## OK
 return (true; false);           ## OK
@@ -351,7 +335,7 @@ class A extends B {
 ## NO
 class A extends B;
 
-## Technically almost OK, but NO
+## Technically OK, but NO
 class A extends B 
     constructor() {  };
 ```
@@ -359,12 +343,12 @@ class A extends B
 The last example will indeed be parsed as :
 
 ```
-       constructor limb ----     --- class body
+     "constructor" limb ----     --- empty body
                            |     |
 class A extends B constructor () {};
 |        |                    | 
--- name  |                    ---- [#tuple]
-         --- extends limb  
+-- macro |                    ---- [#tuple]
+         --- "extends" limb  
 ```
 
 And hence will crash, because your `class` macro likely didn't expect to have a `constructor` limb, and, even if it did, `[#tuple]` probably has nothing to do there.

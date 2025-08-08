@@ -1,23 +1,24 @@
-import { Metadata, throwWith } from "./metadata"
+import { Metadata, summarize } from "./metadata"
+
 
 export enum MicroTokenKind {
-    SEMICOLON,
-    TICK,
-    QUOTE,
+    SEMICOLON = ';',
+    TICK = "'",
+    QUOTE = '"',
 
-    LEFT_PAR,
-    RIGHT_PAR,
-    LEFT_BRACKET,
-    RIGHT_BRACKET,
-    LEFT_CBRACKET,
-    RIGHT_CBRACKET,
+    LEFT_PAR = '(',
+    RIGHT_PAR = ')',
+    LEFT_BRACKET = '[',
+    RIGHT_BRACKET = ']',
+    LEFT_CBRACKET = '{',
+    RIGHT_CBRACKET = '}',
 
-    OPERATOR,
-    IDENTIFIER,
-    NUMBER,
+    OPERATOR = "operator",
+    IDENTIFIER = "identifier",
+    NUMBER = "number",
 
-    UNKNOWN,
-    EOF,
+    UNKNOWN = "unknown character",
+    EOF = "end of file",
 }
 
 
@@ -56,7 +57,7 @@ export class TokenStream {
 
     expect(kind: MicroTokenKind) {
         let token = this.next()
-        if (token.kind !== kind) throwWith(token.metadata, `${MicroTokenKind[kind]} expected.`)
+        if (token.kind !== kind) throw summarize(token.metadata) + ` : ${kind} expected, got ${token.kind}.`
         return token
     }
 
@@ -71,6 +72,10 @@ export class TokenStream {
     loc() {
         return this.peak().metadata.span[0]
     }
+
+    lastloc() {
+        return this.storage[this.i-1]?.metadata.span[1] ?? 0
+    }
 }
 
 
@@ -79,8 +84,8 @@ export class MicroLexer {
     private static readonly INLINE_COMMENT_START = "##"
     private static readonly COMMENT_START = "#-"
     private static readonly COMMENT_END = "-#"
-    private static readonly WHITESPACE_CHARS = "\n\t "
-    private static readonly OPERATOR_CHARS = "&|~^@=+-*%!/:.,?!<>"
+    private static readonly WHITESPACE_CHARS = "\n\t\r "
+    private static readonly OPERATOR_CHARS = "&|~^@=+-*%!$/:.,?!<>"
 
     private static readonly CONTROL = {
         "'": MicroTokenKind.TICK,

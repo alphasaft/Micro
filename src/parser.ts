@@ -1,7 +1,7 @@
-import { Dictionary } from "./_util";
-import { AST, LiteralAST, MacroAST, OpAST, printAst, } from "./ast"
+import { MapLike } from "./_util";
+import { AST, LiteralAST, MacroAST, OpAST } from "./ast"
 import { MicroLexer, MicroToken as Token, MicroTokenKind as TokenKind, TokenStream, canStartExpression } from "./lexer"
-import { Metadata, throwWith } from "./metadata";
+import { metadata, Metadata, summarize } from "./metadata";
 
 
 
@@ -47,6 +47,21 @@ type ParserConfig = {
     macros: MacroDeclaration[],
 }
 
+class ParserError {
+    constructor(public msg: string, public metadata?: Metadata) {}
+
+    toString() {
+        let msg = this.msg 
+        if (this.metadata) msg = summarize(this.metadata) + " : " + this.msg
+        throw msg
+    }
+}
+
+function error(msg: string, metadata?: Metadata): never {
+    throw new ParserError(msg, metadata)
+}
+
+
 /** An abstract class that can be subclassed to parse a specific version of the Micro language. */
 export abstract class MicroParser {
     static readonly numberOp = "#number"
@@ -58,8 +73,8 @@ export abstract class MicroParser {
     static readonly indexOp = "#index"
     static readonly defaultOp = "#operator"
 
-    private operators: Dictionary<InternalOpDeclaration>
-    private macros: Dictionary<InternalMacroDeclaration>
+    private operators: MapLike<InternalOpDeclaration>
+    private macros: MapLike<InternalMacroDeclaration>
     private lexer: MicroLexer
 
     /**
@@ -92,34 +107,34 @@ export abstract class MicroParser {
     }
 
     private checkOperatorExists(operator: string, metadata: Metadata) {
-        if (!(operator in this.operators)) throwWith(metadata, `Unknown operator '${operator}'.`)
+        if (!(operator in this.operators)) throw summarize(metadata) + ` : Unknown operator '${operator}'.`
     }
 
     private makeOperation(operator: string, operands: AST[], metadata: Metadata): OpAST {
         this.checkOperatorExists(operator, metadata)
         this.checkOperatorArity(metadata, operator, operands.length)
-        return { type: "operation", operator, operands, metadata }
+        return { type: "operation", op: operator, operands, metadata }
     }
 
     private checkOperatorArity(metadata: Metadata, name: string, operandCount: number) {
         let arity = this.operators[name].arity
         if (operandCount < arity[0]) {
-            throwWith(metadata, `Operator '${name}' expects at least ${arity[0]} operand(s), got ${operandCount}.`)
+            error(`Operator '${name}' expects at least ${arity[0]} operand(s), got ${operandCount}.`, metadata)
         } else if (operandCount > arity[1]) {
-            throwWith(metadata, `Operator '${name}' expects at most ${arity[1]} operand(s), got ${operandCount}. Perhaps you forgot a semicolon somewhere ?`)
+            error(`Operator '${name}' expects at most ${arity[1]} operand(s), got ${operandCount}. Perhaps you forgot a semicolon somewhere ?`, metadata)
         }
     }
 
-    private makeMacro(name: string, body: AST[], args: AST[], limbs: Dictionary<AST[]>, metadata: Metadata): AST {
+    private makeMacro(name: string, body: AST[], args: AST[], limbs: MapLike<AST[]>, metadata: Metadata): AST {
         return { type: "macro", name, body, head: args, limbs, metadata }
     }
 
     private checkMacroArity(metadata: Metadata, macro: string, argcount: number) {
         let arity = this.macros[macro].arity
         if (argcount < arity[0]) {
-            throwWith(metadata, `Macro '${macro}' expects at least ${arity[0]} argument(s), got ${argcount}.`)
+            error(`Macro '${macro}' expects at least ${arity[0]} argument(s), got ${argcount}.`, metadata)
         } else if (argcount > arity[1]) {
-            throwWith(metadata, `Macro '${macro}' expects at most ${arity[0]} argument(s), got ${argcount}.`)
+            error(`Macro '${macro}' expects at most ${arity[0]} argument(s), got ${argcount}.`, metadata)
         }
     }
 
@@ -142,7 +157,7 @@ export abstract class MicroParser {
                 if (tokens.is(end)) break
             }
             else if (tokens.is(end)) break
-            else throwWith(tokens.peak().metadata, "Semicolon expected. Maybe you misspelled a macro name ?")
+            else error("Semicolon expected. Maybe you misspelled a macro name ?", tokens.peak().metadata)
         }
 
         return sequence
@@ -152,7 +167,7 @@ export abstract class MicroParser {
         let start = tokens.expect(TokenKind.TICK).metadata.span[0]
         let name = tokens.expect(TokenKind.IDENTIFIER)
         let end = name.metadata.span[1]
-        return { type: "literal", value: name.value, metadata: { src: tokens.src, span: [start, end] } }
+        return { type: "literal", value: name.value, metadata: metadata(tokens.src, start, end) }
     }
     
     private parseNumber(tokens: TokenStream): AST {
@@ -172,7 +187,7 @@ export abstract class MicroParser {
         while (!tokens.is(TokenKind.QUOTE)) {
             if (tokens.is(TokenKind.LEFT_CBRACKET)) {
                 let end = tokens.next().metadata.span[0]
-                operands.push({ type: "literal", value: src.substring(anchor, end), metadata: { src, span: [anchor, end] } })
+                operands.push({ type: "literal", value: src.substring(anchor, end), metadata: metadata(src, anchor, end) })
                 operands.push(this.parseExpression(tokens))
                 anchor = tokens.expect(TokenKind.RIGHT_CBRACKET).metadata.span[1]
             } else {        
@@ -182,7 +197,7 @@ export abstract class MicroParser {
 
         let endingQuote = tokens.expect(TokenKind.QUOTE)
         let stringEnd = endingQuote.metadata.span[0]
-        operands.push({ type: "literal", value: src.substring(anchor, stringEnd), metadata: { src, span: [anchor, stringEnd] } })
+        operands.push({ type: "literal", value: src.substring(anchor, stringEnd), metadata: metadata(src, anchor, stringEnd) })
         
         return this.makeOperation(
             MicroParser.stringOp,
@@ -255,7 +270,7 @@ export abstract class MicroParser {
             : canStartExpression(tokens.peak()) ? (() => { let ast = this.parseExpression(tokens); return [[ast], ast.metadata] })()
             : [[], { src: tokens.src, span: [tokens.loc(), tokens.loc()] }]
         
-        if (tokens.is(TokenKind.LEFT_CBRACKET)) throwWith(tokens.peak().metadata, "Inline macros don't expect a body.")
+        if (tokens.is(TokenKind.LEFT_CBRACKET)) error(`Inline macro '${name}' doesn't expect a body.`, tokens.peak().metadata)
         
         this.checkMacroArity(headMetadata, name, head.length)
 
@@ -275,6 +290,7 @@ export abstract class MicroParser {
         let nameToken = tokens.expect(TokenKind.IDENTIFIER)
         let name = nameToken.value
         let binding = this.makeLiteral(tokens.expect(TokenKind.IDENTIFIER))
+        let macroDeclaration = this.macros[name]
 
         let [head, headMetadata]: [AST[], Metadata] = tokens.is(TokenKind.LEFT_PAR)
             ? this.parseEnclosedExpressionSequence(TokenKind.LEFT_PAR, TokenKind.RIGHT_PAR, tokens)
@@ -282,7 +298,7 @@ export abstract class MicroParser {
         head = [binding, ...head]
         this.checkMacroArity(headMetadata, name, head.length)
 
-        let limbs = this.parseMacroLimbs(tokens, name, this.macros[name].limbs, true)[0]
+        let limbs = this.parseMacroLimbs(tokens, name, macroDeclaration.limbs, true)[0]
         let [body, bodyMetadata] = this.parseEnclosedExpressionSequence(TokenKind.LEFT_CBRACKET, TokenKind.RIGHT_CBRACKET, tokens)
         let metadata: Metadata = { src: tokens.src, span: [nameToken.metadata.span[0], bodyMetadata.span[1]] }
 
@@ -295,22 +311,19 @@ export abstract class MicroParser {
         )
     }
 
-    private parseMacroLimbs(tokens: TokenStream, name: string, limbs: string[], inline: boolean): [Dictionary<AST[]>, Metadata] {
-        let limbsASTs: Dictionary<AST[]> = {}
+    private parseMacroLimbs(tokens: TokenStream, name: string, limbs: string[], inline: boolean): [MapLike<AST[]>, Metadata] {
+        let limbsASTs: MapLike<AST[]> = {}
 
         let limbsIndex = 0
         let begin = tokens.loc()
         let end = tokens.loc()
         while (tokens.is(TokenKind.IDENTIFIER)) {
-            let limbNameToken = tokens.next()
+            let limbNameToken = tokens.peak()
             let limbName = limbNameToken.value
 
             while (limbsIndex < limbs.length && limbs[limbsIndex] !== limbName) limbsIndex++
-            if (limbsIndex === limbs.length) {
-                let metadata = limbNameToken.metadata
-                if (limbs.includes(limbName)) throwWith(metadata, `Limb '${limbName}' was not at its place.`)
-                else throwWith(metadata, `Macro '${name}' does not have a '${limbName}' limb. Perhaps you forgot a semicolon ?`)
-            } else limbsIndex++
+            if (limbsIndex === limbs.length) break
+            else tokens.next()
             
             if (tokens.is(TokenKind.LEFT_CBRACKET) && !inline) {
                 let [exprs, metadata] = this.parseEnclosedExpressionSequence(TokenKind.LEFT_CBRACKET, TokenKind.RIGHT_CBRACKET, tokens)
@@ -338,7 +351,8 @@ export abstract class MicroParser {
 
         if (tokens.is(TokenKind.RIGHT_PAR)) {
             end = tokens.next().metadata.span[1]
-            return this.makeOperation(tupleOp, [], { src: tokens.src, span: [begin, end] })
+            let m = metadata(tokens.src, begin, end)
+            return this.makeOperation(tupleOp, [], m)
         }
 
         let ast = this.parseExpression(tokens)
@@ -347,7 +361,8 @@ export abstract class MicroParser {
             tokens.next()
             let args = this.parseExpressionSequence(tokens, TokenKind.RIGHT_PAR)
             end = tokens.expect(TokenKind.RIGHT_PAR).metadata.span[1]
-            return this.makeOperation(tupleOp, [ast, ...args], { src: tokens.src, span: [begin, end] })
+            let m = metadata(tokens.src, begin, end)
+            return this.makeOperation(tupleOp, [ast, ...args], m)
         }
         
         tokens.expect(TokenKind.RIGHT_PAR)
@@ -370,7 +385,7 @@ export abstract class MicroParser {
         let operands: AST[]
         let end: number
 
-        if (!(operator in this.operators)) throwWith(operatorToken.metadata, `Unknown operator ${operator}.`)
+        if (!(operator in this.operators)) error(`Unknown operator ${operator}.`, operatorToken.metadata)
         if (canStartExpression(tokens.peak())) {
             let operand = this.parseExpression(tokens, this.operators[operator].precedence)
             operands = [operand]
@@ -385,6 +400,8 @@ export abstract class MicroParser {
     
     private parseExpression(tokens: TokenStream, minPrecedance: number = 0): AST {
         let { callOp, indexOp } = MicroParser
+
+        let begin = tokens.loc() 
         let leftSide = this.parseOperand(tokens)
  
         while (true) {
@@ -402,7 +419,7 @@ export abstract class MicroParser {
                     if (!tokens.is(TokenKind.OPERATOR)) break;
                     currentOp = tokens.peak().value
                 }
-                let metadata: Metadata = { src: tokens.src, span: [args[0].metadata.span[0], args[args.length-1].metadata.span[1]] }
+                let metadata: Metadata = { src: tokens.src, span: [begin, tokens.lastloc()] }
                 leftSide = this.makeOperation(op, args, metadata)
 
             } else if (tokens.is(TokenKind.LEFT_PAR)) {
@@ -411,6 +428,7 @@ export abstract class MicroParser {
 
                 let [args, argsMetadata] = this.parseEnclosedExpressionSequence(TokenKind.LEFT_PAR, TokenKind.RIGHT_PAR, tokens)
                 let metadata: Metadata = { src: tokens.src, span: [leftSide.metadata.span[0], argsMetadata.span[1]] }
+                
                 leftSide = this.makeOperation(callOp, [leftSide, ...args], metadata)
 
             } else if (tokens.is(TokenKind.LEFT_BRACKET)) {
@@ -440,7 +458,7 @@ export abstract class MicroParser {
             case TokenKind.LEFT_BRACKET: return this.parseExplicitPack(tokens)
             case TokenKind.LEFT_CBRACKET: return this.parseSilentMacro(tokens)
             case TokenKind.TICK: return this.parseLiteral(tokens)
-            default: throwWith(tokens.peak().metadata, `An expression was expected, found '${token.value}'.`)
+            default: error(`An expression was expected, found '${token.value}'.`, tokens.peak().metadata)
         }
     }
 
@@ -448,7 +466,7 @@ export abstract class MicroParser {
      * Parses the script `src` according to the parser's provided macro and operator declarations.
      * If additional arguments are given, they are passed down to the resulting script macro in its head as literals.
      */
-    parse(src: string, ...scriptArgs: string[]): MacroAST {
+    parse(src: string, scriptArgs: string[]): MacroAST {
         let tokens = this.lexer.tokenize(src)
         let body = this.parseExpressionSequence(tokens, TokenKind.EOF)
         return {

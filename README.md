@@ -4,7 +4,7 @@ There is two schools when coming to designing a domain-specific language (DSL) f
 
 Micro aims at finding a middle ground between those two solutions : while having a preexisting syntax that avoids you the annoyance of writing a parser from the ground, said syntax was thought out to be sufficiently versatile to allow almost anything you could think of. It does not seek to to parse preexisting formats ; rather, it is meant to describe some kind of logic or data in an elegant way, without twisting its shape to fit the rigid syntax of a specific language. 
 
-For instance, suppose you want to design a grep-like command line interface interoperable with JS. Here's how it might look like if you tried to implement in pure JS using an imaginary API :
+For instance, suppose you want to write a grep-like command with JS. Here's how it might look like if you wee just to design commands using a pure JS (imaginary) API :
 
 ```js
 let command = new Command("mygrep");
@@ -35,7 +35,6 @@ It comprises a lot of boilerplate code, and requires to know javascript and that
 
 ```
 external myGrepCallback from js;
-
 
 command mygrep calling myGrepCallback {
     argument ("<regexp>") {
