@@ -1,14 +1,15 @@
 {
-    "name": "es6",
-    "version": "1.0.0",
-    "main": "main.js",
+    "name": "micro-lang",
+    "description": "Small and dependency-free library to parse and interprete custom domain-specific languages.",
+    "keywords": [
+        "parser",
+        "dsl"
+    ],
+    "homepage": "https://github.com/alphasaft/Micro#README.md",
+    "license": "MIT",
+    "version": "0.16.1",
+    "main": "src/index.ts",
     "scripts": {
         "build": "webpack"
-    },
-    "devDependencies": {
-        "webpack": "^3.8.1"
-    },
-    "dependencies": {
-        "mate": "^0.21.0"
     }
 }

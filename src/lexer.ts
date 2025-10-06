@@ -12,7 +12,7 @@ export enum MicroTokenKind {
     RIGHT_BRACKET = ']',
     LEFT_CBRACKET = '{',
     RIGHT_CBRACKET = '}',
-
+    
     OPERATOR = "operator",
     IDENTIFIER = "identifier",
     NUMBER = "number",
@@ -74,7 +74,7 @@ export class TokenStream {
     }
 
     lastloc() {
-        return this.storage[this.i-1]?.metadata.span[1] ?? 0
+        return this.storage[this.i > 0 ? this.i-1 : 0].metadata.span[1]
     }
 }
 
@@ -96,7 +96,7 @@ export class MicroLexer {
         ']': MicroTokenKind.RIGHT_BRACKET,
         '{': MicroTokenKind.LEFT_CBRACKET,
         '}': MicroTokenKind.RIGHT_CBRACKET,
-        '"': MicroTokenKind.QUOTE
+        '"': MicroTokenKind.QUOTE,
     }
 
     
@@ -121,7 +121,10 @@ export class MicroLexer {
     }
 
     private isOperatorFirstChar(src: string, i: number) {
-        return !this.isEOF(src, i) && (src[i] === '#' || this.isSymbolicOperatorChar(src, i))
+        return (
+            !this.isEOF(src, i) && 
+            ((src[i] === '#' && i+1 < src.length && this.isLetter(src, i+1)) || this.isSymbolicOperatorChar(src, i))
+        )
     }
 
     private flush(src: string, i: number): number {
@@ -131,12 +134,12 @@ export class MicroLexer {
         if (src.substring(j, j+2) === COMMENT_START) {
             let depth = 0
             do {
+                if (this.isEOF(src, j)) throw "Unclosed comment."
                 switch (src.substring(j, j+2)) {
                     case COMMENT_START: j += 2; depth++; break
                     case COMMENT_END: j += 2; depth--; break
                     default: j++
                 }
-                if (this.isEOF(src, j)) throw "Unclosed comment."
             } while (depth > 0)
         } 
         else if (src.substring(j,j+2) === INLINE_COMMENT_START) { while (src[j] !== '\n') j++; j++ }
@@ -176,7 +179,6 @@ export class MicroLexer {
         let j = i
         if (src[j] === '#') {
             j++
-            if (!this.isLetter(src, j)) throw "'#' is not a valid operator."
             while (this.isLetter(src, j)) j++
         } else {
             while (this.isSymbolicOperatorChar(src, j)) j++

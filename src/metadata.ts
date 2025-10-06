@@ -1,8 +1,9 @@
+import { last } from "./_util";
 
 
 /** Data relative to the Micro source code from which the object originates.
- * @field src - The integrality of the source code
- * @field span - The starting and ending points of the excerpt that produced the object.
+ * @property src - The integrality of the source code
+ * @property span - The starting and ending points of the excerpt that produced the object.
  */
 export type Metadata = { src: string; span: [number, number] };
 
@@ -27,7 +28,7 @@ export function summarize(m: Metadata) {
     let { src, span: [i,j] } = m
     let lines = src.substring(0, i).split("\n")
     let lineNo = lines.length
-    let columnNo = lines.at(-1)!.length+1
+    let columnNo = last(lines)!.length+1
     let excerpt = src.substring(i,j)
     let maxLength = 50
     let shortExcerpt = 

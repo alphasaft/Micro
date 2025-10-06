@@ -4,8 +4,6 @@ import { MicroLexer, MicroToken as Token, MicroTokenKind as TokenKind, TokenStre
 import { metadata, Metadata, summarize } from "./metadata";
 
 
-
-
 type rangeArity = [number, number]
 type arity = number | rangeArity;
 let toRangeArity = (n: arity): rangeArity => typeof n === "number" ? [n,n] : n
@@ -19,30 +17,34 @@ export let twoOrMore: arity = [2, Infinity]
 
 
 /** The expected syntax for the macro. See the syntax reference for more details. */
-type MacroKind = "block" | "inline" | "declarative";
+export type MacroKind = "block" | "inline" | "declarative";
+
+/** A declaration of a macro's limb. See {@link MacroDeclaration} for more details. */
+export type LimbDeclaration = { name: string, mandatory: boolean }
 
 /**
  * A macro declaration.
- * @field name - The macro name.
- * @field arity - The macro arity. Can be of the form n or [n,m], inclusive at both endpoints.
- * @field limbs - The name of the different limbs in the right order.
- * @field mode - See MacroMode. Defaults to "block".
+ * @property name The macro name.
+ * @property arity The macro arity. Can be of the form n or [n,m], inclusive at both endpoints.
+ * @property limbs The limb declarations in the right order.
+ * @property kind See {@link MacroKind}.
  */
-type MacroDeclaration = { name: string; arity: arity; limbs?: string[]; kind: MacroKind };
+export type MacroDeclaration = { name: string; arity: arity; limbs?: LimbDeclaration[]; kind: MacroKind };
 
 /**
- * An operato declaration.
- * @field name - The operator name.
- * @field arity - The operator arity. Can be of the form n or [n,m], inclusive at both endpoints.
+ * An operator declaration.
+ * @property name The operator name.
+ * @property arity The operator arity. Can be of the form `n` or `[n,m]`, inclusive at both endpoints.
  */
-type OpDeclaration = { name: string; arity: arity } 
+export type OpDeclaration = { name: string; arity: arity } 
 
 
-type InternalMacroDeclaration = { arity: [number, number], limbs: string[], mode: MacroKind }
+type InternalMacroDeclaration = { arity: [number, number], limbs: LimbDeclaration[], kind: MacroKind }
 type InternalOpDeclaration = { precedence: number, arity: [number, number] }
 
 
-type ParserConfig = {
+/** Configuration for a MicroParser. Declares operators (in precedence order) and macros. */
+export type ParserConfig = {
     operators: (OpDeclaration[] | OpDeclaration)[],
     macros: MacroDeclaration[],
 }
@@ -64,33 +66,35 @@ function error(msg: string, metadata?: Metadata): never {
 
 /** An abstract class that can be subclassed to parse a specific version of the Micro language. */
 export abstract class MicroParser {
-    static readonly numberOp = "#number"
-    static readonly stringOp = "#string"
-    static readonly nameOp = "#name"
-    static readonly listOp = "#list"
-    static readonly tupleOp = "#tuple"
-    static readonly callOp = "#call"
-    static readonly indexOp = "#index"
-    static readonly defaultOp = "#operator"
+    private static readonly numberOp = "#number"
+    private static readonly stringOp = "#string"
+    private static readonly nameOp = "#name"
+    private static readonly listOp = "#list"
+    private static readonly tupleOp = "#tuple"
+    private static readonly callOp = "#call"
+    private static readonly indexOp = "#index"
+    private static readonly defaultOp = "#operator"
 
     private operators: MapLike<InternalOpDeclaration>
     private macros: MapLike<InternalMacroDeclaration>
     private lexer: MicroLexer
 
     /**
-     * Constructs a new MicroParser with the supplied operator and macro declarations ; these will be the only ones that can
+     * Constructs a new MicroParser with the supplied operator and macro declarations ; they will be the only ones that can
      * be used in the scripts, and the provided arity will be enforced while parsing.
      * 
      * The order in which the operators are supplied is understood as their relative precedence : higher operators will be the ones
-     * with the highest precedence. If two operators should have the same precedence, wrap them side by side in a list. On the other hand, 
-     * the order in which the macros are declared doesn't matter.
+     * with the highest precedence. If two operators should have the same precedence, wrap them side by side in a list.
+     * The order in which the macros are declared doesn't matter.
      * 
      */
-    constructor({ operators, macros }: ParserConfig) {
+    constructor(config: ParserConfig) {
+        let { operators, macros } = config
+
         this.operators = {}
         for (let i = 0; i<operators.length; i++) {
             let slice = operators[i]
-            if ("includes" in slice) for (let op of slice) {
+            if (Array.isArray(slice)) for (let op of slice) {
                 this.operators[op.name] = { arity: toRangeArity(op.arity), precedence: operators.length-i}
             } else {
                 let op = slice
@@ -100,7 +104,7 @@ export abstract class MicroParser {
 
         this.macros = {}
         for (let macro of macros) {
-            this.macros[macro.name] = { arity: toRangeArity(macro.arity), limbs: macro.limbs ?? [], mode: macro.kind ?? "block" }
+            this.macros[macro.name] = { arity: toRangeArity(macro.arity), limbs: macro.limbs ?? [], kind: macro.kind ?? "block" }
         }
 
         this.lexer = new MicroLexer
@@ -216,7 +220,7 @@ export abstract class MicroParser {
     private parseMacro(tokens: TokenStream): AST {
         let name = tokens.peak().value
         let macroDec = this.macros[name]
-        switch (macroDec.mode) {
+        switch (macroDec.kind) {
             case "block":
                 return this.parseBlockMacro(tokens)
             case "inline":
@@ -311,7 +315,7 @@ export abstract class MicroParser {
         )
     }
 
-    private parseMacroLimbs(tokens: TokenStream, name: string, limbs: string[], inline: boolean): [MapLike<AST[]>, Metadata] {
+    private parseMacroLimbs(tokens: TokenStream, name: string, limbs: LimbDeclaration[], inline: boolean): [MapLike<AST[]>, Metadata] {
         let limbsASTs: MapLike<AST[]> = {}
 
         let limbsIndex = 0
@@ -321,7 +325,10 @@ export abstract class MicroParser {
             let limbNameToken = tokens.peak()
             let limbName = limbNameToken.value
 
-            while (limbsIndex < limbs.length && limbs[limbsIndex] !== limbName) limbsIndex++
+            while (limbsIndex < limbs.length && limbs[limbsIndex].name !== limbName) {
+                if (limbs[limbsIndex].mandatory) error(`Limb '${limbs[limbsIndex].name}' is missing for macro '${name}'.`)
+                limbsIndex++
+            }
             if (limbsIndex === limbs.length) break
             else tokens.next()
             
@@ -340,6 +347,7 @@ export abstract class MicroParser {
     }
 
     private parseSilentMacro(tokens: TokenStream): AST {
+        if (!("" in this.macros && this.macros[""].kind === "block")) error("Syntax error.")
         let [body, metadata] = this.parseEnclosedExpressionSequence(TokenKind.LEFT_CBRACKET, TokenKind.RIGHT_CBRACKET, tokens)
         return this.makeMacro("", body, [], {}, metadata)
     }
