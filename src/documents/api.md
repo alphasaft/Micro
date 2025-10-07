@@ -357,7 +357,7 @@ When you need to implement a syntactic feature that does not seem to be possible
 
 ### Syntactic typing and prechecks
 
-As your language grows bigger, you might want to have a stronger grasp on the syntax than just relying on the native micro syntax. For example, suppose you add an `import` feature with a macro, that looks like this :
+As your language grows bigger, you might want to have a stronger grasp on the syntax than just relying on the native micro parsing. For example, suppose you add an `import` feature with a macro, that looks like this :
 
 ```js
 import A from "file";

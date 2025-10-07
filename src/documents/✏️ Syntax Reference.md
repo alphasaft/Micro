@@ -1,33 +1,8 @@
 
 # MICRO SYNTAX REFERENCE  
 
-"What is that syntax reference supposed to be ? Am I about to learn a new language ?", might be respectively the first and second question that come to your mind, and I'm here to answer them both - but not in the right order. Are you about to learn a new language ? Well, yes and no. In a sense, you're about to learn plenty of new languages at once. Micro is a set of syntactic rules, that scripts written using it must follow them ; until there, it's just a normal language. The catch is that these syntactic rules are... well, let's say they're very generic. The Micro library allows you to refine them to obtain a concrete syntax, and, once it's done - and only then - will you get a language in the most common acceptance of that term. Which brings us to what that syntax reference is supposed to be. It just describes those generic syntax rules, staying vague enough to allow for high customization, yet narrow enough to ensure that a script can be unambiguously parsed without much help from you. 
 
-## A gentle example
-
-Let's illustrate a little bit the abstract, unclear mess I served you above. Suppose we want to write a calculator DSL, i.e a simple language that is able to perform mathematical operations. Then, here's a syntax we could choose :
-
-* `+`, `-`, `*`, and `/` will be used to add, substract, etc,
-* `<` & Co. will be used for comparisons,
-* `def` will be used to declare mathematical functions,
-* We'll support `return`-ing from those functions, and toss in some control flow.
-
-Here's an example of a script :
-
-```
-def fact(n) {
-    if (n > 0) return n*fact(n-1)
-    else return 1
-};
-
-fact(fact(4));  ## Quite a lot, actually !
-```
-
-When you'll proceed to the next sections, you'll understand how exactly the script is built, but, for now, let's just try to understand how it works intuitively. When designing our language with the Micro framework, we'll have to specify that we want to bring the possibility to use `+`, `-`, ..., as well as language structures named `def`, `if` and `return` in our scripts. And... that's done ! Of course, we'll have to specify the actual behavior of these features later, but telling their names to the framework is already enough for Micro to know to read your scripts, because it has an already implemented notion of how structures and operators look like : for instance, it knows that if a structure is a declaration of some kind, then the syntax looks like `declarationType nameOfTheThing(args) { statements }` ; this allows to design languages frighteningly quickly, without giving up on expressiveness. 
-
-Let's now delve into what syntactical features at are your disposal when designing a language.
-
-
+If you read the beginner's handbook first, that's great, else I strongly advise you to do so. In this syntax reference we are going to explore the different syntactic possibilities that are at your disposal when designing a new language with Micro.
 
 ## Basic syntax
 
@@ -59,22 +34,22 @@ There's two kind of operators, that differ only by their syntax : symbolic opera
 'x #in 'list;
 ```
 
-You can use hash operators just like normal operators, everywhere they appear :
+You can use hash operators just like normal operators, everywhere the latter appear :
 ```
 'condition = 'x #in 'list && 'y #notin 'list;
 ```
 
 Micro allows unary operators in a prefix form, as well as nullary operators (zero operands) :
 ```
-#print 0;   ## OK
+#print 'hi;   ## OK
 ?;          ## OK
 ```       
 
 If there's an ambiguity, enclose the problematic operator in square brackets or in parentheses :
 ```
-? || 3 <=> (? (|| 3));  ## Probably not what was intended
-[?] || 3                ## OK
-(?) || 3                ## OK
+? || 'x <=> (? (|| 3));  ## Probably not what was intended
+[?] || 'x                ## OK
+(?) || 'x                ## OK
 ```
 
 
@@ -198,7 +173,7 @@ macro(
 ```
 
 
-Since macros are regular expressions, you can nest them, operate on them, etc :
+Since macros are themselves expressions, you can nest them, operate on them, etc :
 ```
 if (false) {            ##
     if (true) {         ##
@@ -257,28 +232,13 @@ if (true) { ... } else {};                  ## OK
 if (true) { ... } else;                     ## NO
 ```
 
-Using a pair of curly brackets alone is understood as invoking a macro named `''` (empty string), which we call the silent macro.
-```
-{};
-```
-
-Just like a normal block macro, statements can be put inside. These will form the body of the macro :
-```
-{ x;y;z };
-```
-
-Should you want to pass arguments and add limbs to the silent macro, you would write this :
-
-```
-``(arg1; ...; argn) { x;y;z } limb { };
-```
-
-But this is highly unclear, and it is made possible only because of how ``` ` ```-surrounded names work. Here, we literaly invoke the macro which has name ``` `` ``` (empty string), which is simply the silent macro. It is highly recommended not to use this syntax at all.
-
 
 ## Other macro forms
 
 There exist two more macro forms, which are also useful in a variety of situations.
+
+
+### Inline macros
 
 The first of these are inline macros, so called because they almost always are one-liners, much shorter than their block counterparts. They don't have a body, only a head.
 ```
@@ -307,8 +267,9 @@ import x;y from "file" <=> (import x); (y from file);   ## NO
 import (x;y) from "file";                               ## OK
 ```
 
+### Declarative macros
 
-The last kind of macros is mostly used to mimic declarations of objects of some kind. They are called declarative macros and have a syntax that differs by quite a bit from the other two. Take for instance a declarative macro called `func`. Then :
+The second kind is mostly used to mimic declarations of objects of some kind. They are called declarative macros and have a syntax that differs by quite a bit from the other two. Take for instance a declarative macro called `func`. Then :
 
 ```
 func f(arg1, ..., argn) returning int { 
@@ -352,3 +313,23 @@ class A extends B constructor () {};
 ```
 
 And hence will crash, because your `class` macro likely didn't expect to have a `constructor` limb, and, even if it did, `[#tuple]` probably has nothing to do there.
+
+### The silent macro
+
+Finally, using a pair of curly brackets alone is understood as invoking a special macro named `''` (empty string), which we call the silent macro. It is technically a block macro.
+```
+{};
+```
+
+Just like a normal block macro, statements can be put inside. These will form the body of the macro :
+```
+{ x;y;z };
+```
+
+Should you want to pass arguments and add limbs to the silent macro, you would write this :
+
+```
+``(arg1; ...; argn) { x;y;z } limb { };
+```
+
+But this is highly unclear, and it is made possible only because of how ``` ` ```-surrounded names work. Here, we literaly invoke the macro which has name ``` `` ``` (empty string), which is simply the silent macro. It is highly recommended not to use this syntax at all.

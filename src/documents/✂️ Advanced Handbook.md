@@ -1,6 +1,6 @@
 # Micro's advanced hanbook
 
-If you read the beginner's handbook first, that's great, else I strongly advise you to do so. In this handbook we're going to cover Micro's medium and advanced features. Those are arranged in a somewhat arbitrary order, so feel free to check whatever you think you'd use.
+If you read the beginner's handbook first, that's great, else I strongly advise you to do so. In this handbook we're going to cover Micro's medium and advanced features.
 
 ## Table of contents
 
@@ -11,6 +11,7 @@ If you read the beginner's handbook first, that's great, else I strongly advise 
 2. [Macros advanced features](#2-macros)
     1. [Head, body and limbs](#21-head-body-and-limbs)
     2. [Scoping](#22-scoping)
+    3. [Delegating](#23-delegating)
 3. [AST manipulation](#3-ast-manipulation)
 4. [Syntactic typing](#4-syntactic-typing)
 5. [Error handling](#5-error-handling)
@@ -19,7 +20,7 @@ If you read the beginner's handbook first, that's great, else I strongly advise 
 
 ### 1.1. Arity
 
-When declaring an operator, you have to specify an arity, which must be either a number, or a 2-sized array, inclusive at both endpoints. If that arity is two, you can use the operator in infix mode, as in `a+b`. That's what was done in the beginner's handbook, but that's not the only possibility.
+As explained in the [beginner's handbook](🔎%20Beginner%20Handbook.md), when declaring an operator, you have to specify an arity, which must be either a number, or a 2-sized array, inclusive at both endpoints. If that arity is two, you can use the operator in infix mode, as in `a+b`. That's what was done in the beginner's handbook, but that's not the only possibility.
 
 If that arity is one, then the operator is to be used in prefix mode :
 
@@ -96,7 +97,7 @@ A lot of reducers you'll write will follow these patterns, so remember they're h
 
 ### 2.1 Body, head and limbs
 
-As you might have seen from the [syntax reference](Syntax%20Reference.md), a macro can actually be much more than what is presented in the [beginner's handbook](Beginner%20Handbook.md). There's several different possible syntaxes for a macro (`inline`, `block` and `declarative`, once again see the syntax reference), but in the end all of these are parsed into the same format : a `MacroAST`. It is a simple data object with six members :
+As you might have seen from the [syntax reference](✏️%20Syntax%20Reference.md), a macro can actually be much more than what is presented in the [beginner's handbook](🔎%20Beginner%20Handbook.md). There's several different possible syntaxes for a macro (`inline`, `block` and `declarative`, once again see the syntax reference), but in the end all of these are parsed into the same format : a `MacroAST`. It is a simple data object with six members :
 
 * `type` : Always `"macro"`. This is to distinguish it from the other AST types.
 * `name` : The name of the invoked macro.
@@ -142,7 +143,99 @@ ifReducer = ({use}, { body, head: [condition], limbs: { else: elseLimb } }) => {
 
 Implementing any macro is as simple as that. The fact each and every macro is parsed as a `MacroAST`, with an invariant interface, allows to easily decouple syntax and semantics, as well as to write macros very quickly, resulting in lightning-fast customization of the language.
 
-## 2.2 Scoping
+### 2.2 Scoping
 
-Scoping is perhaps one of the most important features of Micro. That term refers to the fact operator and macro reducers have a certain semantic scope, and are available to use within that sematic scope - and only within. Let's take back our `if` macro, and put it in the broader context of a small arithmetic language. 
+Scoping is perhaps one of the most important features of Micro. That term refers to the fact operator and macro reducers have a certain semantic scope, and are available to use within that sematic scope - and only within. Let's take back our `if` macro, and put it in the broader context of a small arithmetic language. Those are the declarations :
+
+```js
+{
+    operators: [
+        [{ name: '#number', arity: 1 }],
+        [{ name: '*', arity: 2 }, { name: '/', arity: 2 }],
+        [{ name: '+', arity: 2 }, { name: '-', arity: 2 }],
+        [{ name: '#print', arity: 1 }]
+    ],
+    macros: [
+        { name: "if", arity: 1, kind: "block" },  // Could add an else limb, but for the demonstration it isn't needed.
+    ]
+}
+```
+
+Now, let's write some basic reducers :
+
+```js
+class DemoReducer extends MicroReducer {
+    lift = s => s
+
+    script = ({use}, { body }) => {
+        let $ = use({
+            operators: {
+                '#number': ($,s) => parseInt($(s))
+                '*': ($,a,b) => $(a)*$(b)
+                '/': ($,a,b) => $(a)/$(b)
+                '+': ($,a,b) => $(a)+$(b)
+                '-': ($,a,b) => $(a)-$(b)
+                '#print': ($,a) => console.log($(a))
+            },
+            macros: {
+                'if': this.ifReducer
+            }
+        })
+    }
+
+    ifReducer = ({use}, { head: [condition], body }) => {
+        let $ = use({})
+        if ($(head)) for (let stmt of body) $(stmt)
+    }
+}
+```
+
+You may notice while in `script` we declare a handful of reducers, in `ifReducer` we do not, and instead just go for `let $ = use({})`. This is because, when declared, operator and macro reducers are available for every nested (directly or indirectly) structure. So here, any macro evaluated using the `$` defined in `script` will have the reducers for `+`, `-`, `*` and `/` at its disposal, even if doesn't redeclare them in their own reducers.
+
+If there's a conflict between two reducers, the golden rule is : innermost wins. That is, if `if` were to declare its own `+` reducer, inside it it would prime over the global, `script`-level defined `+` reducer.
+
+> **NOTE** : In operator reducers, there's no `use` function, and the `$` is available from the go ; this is because, for performance (and boilerplate code avoidance) reasons, operators do not get to redefine operators and macros inside their own reducer, and must use the ones ambiantly defined : the `$` is internally always obtained as `let $ = use({})`.
+
+### 2.3 Delegating
+
+> Is this necessary ? Plus, it allows to just evaluate things quite a lot of times, no ?
+
+Sometimes, you'd like to have more control over scoping than just the binary choice "Do I define it there or not". Suppose we want to write some `verbose` macro, that prints to the console whenever an addition is performed within its body. We would declare it as a block macro with 0 arity, and then write the reducer :
+
+```js
+let verboseReducer = ({use}, { body }) => {
+    let $ = use({
+        // We override locally the plus operator to log its invocations.
+        '+': ($,a,b) => {
+            let $a = $(a), $b = $(b)
+            console.log(`Adding ${$a} and ${$b} !`)
+            return $a+$b
+        }
+    })
+
+    for (let stmt of body) $(stmt)
+}
+```
+
+This will work, to some extent. As soon as you try to nest two or more `verbose` blocks inside one another, the `+` implementation of the inner one will override every other, and thus it will print to the console only once - although it would be a reasonnable expectation to assume nesting n blocks will log n times. Hence, we need to be able to override the ambient implementation locally, but not totally. For that, the first argument of reducers (which we usually only pattern-match to get `use`), `context`, also makes available the ambient reducers. Here's our updated `verbose` reducer : 
+
+```js
+let verboseReducer = ({use, operators}, { body }) => {
+    let $ = use({
+        // We override locally the plus operator to log its invocations.
+        '+': ($,a,b) => {
+            let $a = $(a), $b = $(b)
+            console.log(`Adding ${$a} and ${$b} !`)
+            // But now we delegate back to the ambient implementation after we're done !
+            return operators['+']($,a,b)
+        }
+    })
+
+    for (let stmt of body) $(stmt)
+}
+```
+
+This fixes our problem as desired. `context` also has a `macros` field with a similar purpose if needed.
+
+## AST Manipulation
 
