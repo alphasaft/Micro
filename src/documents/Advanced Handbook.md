@@ -20,7 +20,7 @@ If you read the beginner's handbook first, that's great, else I strongly advise 
 
 ### 1.1. Arity
 
-As explained in the [beginner's handbook](🔎%20Beginner%20Handbook.md), when declaring an operator, you have to specify an arity, which must be either a number, or a 2-sized array, inclusive at both endpoints. If that arity is two, you can use the operator in infix mode, as in `a+b`. That's what was done in the beginner's handbook, but that's not the only possibility.
+As explained in the [beginner's handbook](Beginner%20Handbook.md), when declaring an operator, you have to specify an arity, which must be either a number, or a 2-sized array, inclusive at both endpoints. If that arity is two, you can use the operator in infix mode, as in `a+b`. That's what was done in the beginner's handbook, but that's not the only possibility.
 
 If that arity is one, then the operator is to be used in prefix mode :
 
@@ -97,7 +97,7 @@ A lot of reducers you'll write will follow these patterns, so remember they're h
 
 ### 2.1 Body, head and limbs
 
-As you might have seen from the [syntax reference](✏️%20Syntax%20Reference.md), a macro can actually be much more than what is presented in the [beginner's handbook](🔎%20Beginner%20Handbook.md). There's several different possible syntaxes for a macro (`inline`, `block` and `declarative`, once again see the syntax reference), but in the end all of these are parsed into the same format : a `MacroAST`. It is a simple data object with six members :
+As you might have seen from the [syntax reference](Syntax%20Reference.md), a macro can actually be much more than what is presented in the [beginner's handbook](Beginner%20Handbook.md). There's several different possible syntaxes for a macro (`inline`, `block` and `declarative`, once again see the syntax reference), but in the end all of these are parsed into the same format : a `MacroAST`. It is a simple data object with six members :
 
 * `type` : Always `"macro"`. This is to distinguish it from the other AST types.
 * `name` : The name of the invoked macro.

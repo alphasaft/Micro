@@ -11,7 +11,7 @@ For this tutorial, we'll want to implement a small arithmetic language : it will
 
 ## `MicroParser`
 
-First, we need to define the syntax of our language, and for that we'll need the `MicroParser` class, that lets you declare the version of the Micro Language you'll like to use. I advise you read the [syntax reference](✏️%20Syntax%20Reference.md) as soon as you're finished with this handbook, but let's get a quick grasp at how things work first. For our language (and to begin with) we'll want to use `+`, `-`, `*`, and `/`, so we just subclass `MicroParser` and tell exactly that within the constructor :
+First, we need to define the syntax of our language, and for that we'll need the `MicroParser` class, that lets you declare the version of the Micro Language you'll like to use. I advise you read the [syntax reference](Syntax%20Reference.md) as soon as you're finished with this handbook, but let's get a quick grasp at how things work first. For our language (and to begin with) we'll want to use `+`, `-`, `*`, and `/`, so we just subclass `MicroParser` and tell exactly that within the constructor :
 
 ```js
 import { MicroParser } from "micro-lang"
@@ -31,7 +31,7 @@ class DemoParser extends MicroParser {
 
 The `arity` field is how many operands each operator expects, so here each of our arithmetic operations will be represented by operators that take exactly two operands. Aside from them, we include `#number`, which always has an arity of `1` and tells the parser we want to allow the use of number literals in our scripts.
 
-> **NOTE** : The order in which operators are declared is their relative precedence, starting with the ones with the highest. By convention, and since `#number` won't appear explicitely in-script (so its precedence does not matter), it's always put at the top. See the [syntax reference](✏️%20Syntax%20Reference.md#precedence) when you're done with this handbook for more details about that concept.
+> **NOTE** : The order in which operators are declared is their relative precedence, starting with the ones with the highest. By convention, and since `#number` won't appear explicitely in-script (so its precedence does not matter), it's always put at the top. See the [syntax reference](Syntax%20Reference.md#precedence) when you're done with this handbook for more details about that concept.
 
 ## `MicroReducer`
 
@@ -74,7 +74,7 @@ class DemoReducer extends MicroReducer {
 
 With `use`, we tell that what `+` does is `$`-ing (`$` always reads "evaluate" in Micro) its operands, then adding them ; it goes similarly for the others (arguments to `#number` are handed by Micro as strings, so we `parseInt` them to get a usable number).What `use` returns is a `Evaluator`, `$`, which we can use to evaluate every statement in your body, and print the result.
 
-Should you try to run that code now, Micro will complain, because a little thing is missing : a `lift` function. If you want to find out more about `lift`, see the [advanced handbook](✂️%20Advanced%20Handbook.md), as we are not gonna cover it here. Just know customizing it is an advanced feature that can come in handy ; most of the time, however, taking `lift = s => s` is amply enough.
+Should you try to run that code now, Micro will complain, because a little thing is missing : a `lift` function. If you want to find out more about `lift`, see the [advanced handbook](Advanced%20Handbook.md), as we are not gonna cover it here. Just know customizing it is an advanced feature that can come in handy ; most of the time, however, taking `lift = s => s` is amply enough.
 
 ```js
 class DemoReducer extends MicroReducer {
@@ -107,7 +107,7 @@ You can now instantiate a runner with `let runner = new DemoRunner`, and run any
 
 Should print `8`, `-6` and `1.0`.
 
-> **NOTE** : Some mathematical expressions, such as `-1` or `1+2+3`, will raise an error from Micro. This is normal, and the reason why, as well as the (minor) fix, are detailed in the [advanced handbook](✂️%20Advanced%20Handbook.md#11-arity).
+> **NOTE** : Some mathematical expressions, such as `-1` or `1+2+3`, will raise an error from Micro. This is normal, and the reason why, as well as the (minor) fix, are detailed in the [advanced handbook](Advanced%20Handbook.md#11-arity).
 
 ## Output control
 
@@ -128,7 +128,7 @@ class DemoParser extends MicroParser {
 
 The arity of the macro is `0`, meaning it takes no arguments, and its kind is `block` ; those two things mean that syntactically speaking the macro is only an identifier followed by some statements enclosed in curly brackets.
 
-> **NOTE** : More about the different macro syntaxes and the way to declare them in the [advanced handbook](✂️%20Advanced%20Handbook.md#2-macros) and the [syntax reference](✏️%20Syntax%20Reference.md). We'll take the following definition for now : a macro is a specific block of code preceded by an identifier.
+> **NOTE** : More about the different macro syntaxes and the way to declare them in the [advanced handbook](Advanced%20Handbook.md#2-macros) and the [syntax reference](Syntax%20Reference.md). We'll take the following definition for now : a macro is a specific block of code preceded by an identifier.
 
 Next, as before, we write a reducer. Macro reducers work the same way as the `script` function : they take a `use` function, a `body` which is a list of statements, and do stuff with them.
 
@@ -181,4 +181,4 @@ main {
 }
 ```
 
-All of that in a matter of minutes. If you wish to learn more and delve into Micro's advanced features, feel free to explore the [advanced hanbook](✂️%20Advanced%20Handbook.md), as well as the full [syntax reference](✏️%20Syntax%20Reference.md) to see all the tools and options at your disposal ! 
+All of that in a matter of minutes. If you wish to learn more and delve into Micro's advanced features, feel free to explore the [advanced hanbook](Advanced%20Handbook.md), as well as the full [syntax reference](Syntax%20Reference.md) to see all the tools and options at your disposal ! 
