@@ -217,7 +217,7 @@ export function hasType(actual: TypeSpecifier, expected: TypeSpecifier) {
  * * `lang.expr.variable` : Creates a new type specifier named `lang.expr.variable`.
  * * `lang.expr.variable (type)` : Requires the type specifier `type` to originate from a construct named `lang.expr.variable`.
  * 
- * Usage : `let plus = (a,b) => { lang.expr (a); lang.expr (b); return lang.expr }` would for instance declare an operator checker
+ * Usage : `let plus = ($,a,b) => { $(a, lang.expr); $(b, lang.expr); return lang.expr }` would for instance declare an operator checker
  * that ensures both operands to `+` have the `lang.expr` syntactic type, and marks `+` as another `lang.expr` by returning that syntactic type.
  * 
  * Type specifiers are implemented with JS' `Proxy` class, so any name can be used : writing `lang.my.type.specifier` yields a
