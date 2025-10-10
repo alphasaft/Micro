@@ -1,9 +1,7 @@
-/** @packageDocument @internal */
-
 import { Metadata, summarize } from "./metadata"
 
 
-/** @hidden */
+/** @internal */
 export enum MicroTokenKind {
     SEMICOLON = ';',
     TICK = "'",
@@ -24,9 +22,10 @@ export enum MicroTokenKind {
     EOF = "end of file",
 }
 
-
+/** @internal */
 export type MicroToken = { kind: MicroTokenKind, value: string, metadata: Metadata }
 
+/** @internal */
 export function canStartExpression(token: MicroToken) {
     switch (token.kind) {
         case MicroTokenKind.LEFT_PAR:
@@ -43,6 +42,7 @@ export function canStartExpression(token: MicroToken) {
     }
 }
 
+/** @internal */
 export class TokenStream {
     private i: number
 
@@ -81,7 +81,7 @@ export class TokenStream {
     }
 }
 
-
+/** @internal */
 export class MicroLexer {
     
     private static readonly INLINE_COMMENT_START = "##"
