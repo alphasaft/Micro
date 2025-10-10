@@ -16,7 +16,7 @@ At its core, any Micro script consists of a sequence of expressions, separated b
 'a || 'b@'c;                  
 ```
 
-As you have noticed, comments start with `##` and end at the line break. They can also be multiline comments wrapped inside a `#' #'` pair.
+As you have noticed, comments start with `##` and end at the line break. They can also be multiline comments wrapped inside a `#' '#` pair.
 ```
 ## This is a comment
 #' 
@@ -24,7 +24,7 @@ And
 so 
 is 
 this
-#'
+'#
 ```
 
 
