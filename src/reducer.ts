@@ -118,19 +118,19 @@ class ReducerError<Error> {
 export abstract class MicroReducer {
 
     /** The function that will be used to lift `LiteralAST`s to a usable `Value`. */
-    protected abstract lift: Lifter
+    abstract lift: Lifter
 
     /** The function to which the whole script AST will be passed for reducing (i.e the MicroReducer's entry point) */
-    protected abstract script: MacroReducer
+    abstract script: MacroReducer
 
     /** The function that will handle errors, should one happen. */
-    protected handle: ErrorHandler = (e: any) => { if (e instanceof ReducerError) throw e.toString(); else throw e }
+    handle: ErrorHandler = (e: any) => { if (e instanceof ReducerError) throw e.toString(); else throw e }
 
     /** The operator reducer that will be used to reduce some operator if no reducer is provided. If not overriden, throws an exception. */
-    protected defaultOpReducer: OpReducer = () => { error("Syntax error.") }
+    defaultOpReducer: OpReducer = () => { error("Syntax error.") }
 
     /** The macro reducer that will be used to reduce some macro if no reducer is provided. If not overriden, throws an exception. */
-    protected defaultMacroReducer: MacroReducer = () => { error("Syntax error.") }
+    defaultMacroReducer: MacroReducer = () => { error("Syntax error.") }
 
     private reduce_(
         ast: AST, 

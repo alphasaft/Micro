@@ -10,16 +10,16 @@ import { MicroReducer, Value } from "./reducer"
 export abstract class MicroRunner {
 
     /** The parser that will be used to generate an AST out of the source scripts. */
-    protected abstract parser: MicroParser
+    abstract parser: MicroParser
 
     /** The reducers that will go throught the AST to check it. */
-    protected checkers: MicroReducer[] = []
+    checkers: MicroReducer[] = []
 
     /** 
      * The reducer that will reduce the AST produced by the parser. 
      * Its return result will be understood as the value produced by the script.
      */
-    protected abstract reducer: MicroReducer
+    abstract reducer: MicroReducer
 
     /** 
      * Parses the script, and returns the value that reducing it produces. Is the exact same as : 
@@ -33,7 +33,7 @@ export abstract class MicroRunner {
         return exec()
     }
 
-    /** Compiles the script, i.e parses it, checks it, and returns a function that runs it when called */
+    /** Compiles the script, i.e parses it, checks it, and returns a function that reduces it when called */
     compile(src: string, args: string[] = []): () => Value {
         let ast = this.parser.parse(src, args)
         this.checkers.forEach(c => c.reduce(ast))
