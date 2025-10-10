@@ -82,8 +82,8 @@ export class TokenStream {
 export class MicroLexer {
     
     private static readonly INLINE_COMMENT_START = "##"
-    private static readonly COMMENT_START = "#-"
-    private static readonly COMMENT_END = "-#"
+    private static readonly COMMENT_START = "#'"
+    private static readonly COMMENT_END = "'#"
     private static readonly WHITESPACE_CHARS = "\n\t\r "
     private static readonly OPERATOR_CHARS = "&|~^@=+-*%!$/:.,?!<>"
 
@@ -118,6 +118,10 @@ export class MicroLexer {
 
     private isNumber(src: string, i: number) {
         return !this.isEOF(src, i) && !isNaN(parseInt(src[i]))
+    }
+
+    private isAlphaNumric(src: string, i: number) {
+        return this.isLetter(src, i) || this.isNumber(src, i)
     }
 
     private isOperatorFirstChar(src: string, i: number) {
@@ -179,7 +183,7 @@ export class MicroLexer {
         let j = i
         if (src[j] === '#') {
             j++
-            while (this.isLetter(src, j)) j++
+            while (this.isAlphaNumric(src, j)) j++
         } else {
             while (this.isSymbolicOperatorChar(src, j)) j++
         }
@@ -193,16 +197,27 @@ export class MicroLexer {
             while (src[j] !== "`") j++
             return { kind: MicroTokenKind.IDENTIFIER, value: src.substring(i+1, j), metadata: { src, span: [i,j+1] } }
         } else {    
-            while (this.isLetter(src, j)) j++
+            while (this.isAlphaNumric(src, j)) j++
             return this.makeToken(MicroTokenKind.IDENTIFIER, src, i, j)
         }
     }
 
     private makeNumberToken(src: string, i: number): MicroToken {
         let j = i
-        while (this.isNumber(src, j)) j++
-        if (src[j] === '.') j++
-        while (this.isNumber(src, j)) j++
+
+        if (src[i] === '0') {
+            if (this.isLetter(src, j+1)) {
+                j+=2
+                while (this.isAlphaNumric(src, j)) j++
+            } else if (this.isNumber(src, j+1)){
+                throw "Ill-formed number : if a non-zero number begins with the character '0', a format (as in 0xFF) is expected."
+            }
+        } else {
+            while (this.isNumber(src, j)) j++
+            if (src[j] === '.') j++
+            while (this.isNumber(src, j)) j++
+        }
+
         return this.makeToken(MicroTokenKind.NUMBER, src, i, j)
     }
 

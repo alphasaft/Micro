@@ -1,17 +1,17 @@
 # Micro beginner's handbook
 
-Micro aims at finding a middle ground between fully designing a parser and being forced to comply with (sometimes quite rigid) preexisting languages syntaxes when writing DSLs. The library is the conjuction of a very volatile language, also called Micro, and of the tools needed to interpret it. It works as follow :
+The Micro libary aims at providing an easy and quick way to design brand-new languages as "sublanguages" of Micro, a generic and very volatile "superlanguage". A typical workflow when using Micro is the following :
 
-1. In no more than a few lines, you tell what syntax you'd like to use,
+1. You tell what subset of the native Micro syntax you'd like to use,
 2. Micro generates the appropriate parser,
-3. That parser outputs an abstract syntactic tree (AST) when given any valid script
-4. The Micro library provides you with the tools to interpret that AST, thereby executing your code
+3. When handed any valid script, that parser outputs an abstract syntactic tree (AST), that is a formatted representation of the input code
+4. The Micro library provides you with the tools to browse and act on that AST, thereby executing your code
 
 For this tutorial, we'll want to implement a small arithmetic language : it will compute expressions and print their results to the console. As you'll see, it will turn out to be very easily customizable and extremely fast to write !
 
 ## `MicroParser`
 
-First, we need to define the syntax of our language, and for that we'll need the `MicroParser` class, that lets you declare the version of the Micro Language you'll like to use. I advise you read the [syntax reference](Syntax%20Reference.md) as soon as you're finished with this handbook, but let's get a quick grasp at how things work first. For our language (and to begin with) we'll want to use `+`, `-`, `*`, and `/`, so we just subclass `MicroParser` and tell exactly that within the constructor :
+First, we need to define the syntax of our language, and for that we'll need the `MicroParser` class, that lets you declare the version of the Micro Language you'd like to use. I advise you read the [syntax reference](Syntax%20Reference.md) as soon as you're finished with this handbook, but let's get a quick grasp at how things work first. For our language (and to begin with) we'll want to use `+`, `-`, `*`, and `/`, so we just subclass `MicroParser` and tell exactly that within the constructor :
 
 ```js
 import { MicroParser } from "micro-lang"
@@ -31,7 +31,7 @@ class DemoParser extends MicroParser {
 
 The `arity` field is how many operands each operator expects, so here each of our arithmetic operations will be represented by operators that take exactly two operands. Aside from them, we include `#number`, which always has an arity of `1` and tells the parser we want to allow the use of number literals in our scripts.
 
-> **NOTE** : The order in which operators are declared is their relative precedence, starting with the ones with the highest. By convention, and since `#number` won't appear explicitely in-script (so its precedence does not matter), it's always put at the top. See the [syntax reference](Syntax%20Reference.md#precedence) when you're done with this handbook for more details about that concept.
+> **NOTE** : The order in which operators are declared is their relative precedence, starting with the ones with the highest. By convention, and since `#number` won't appear explicitely in-script (so its precedence does not matter), it's always put at the top. See the [syntax reference](Syntax%20Reference.md#precedence-and-arity) when you're done with this handbook for more details about that concept.
 
 ## `MicroReducer`
 
@@ -72,7 +72,7 @@ class DemoReducer extends MicroReducer {
 }
 ```
 
-With `use`, we tell that what `+` does is `$`-ing (`$` always reads "evaluate" in Micro) its operands, then adding them ; it goes similarly for the others (arguments to `#number` are handed by Micro as strings, so we `parseInt` them to get a usable number).What `use` returns is a `Evaluator`, `$`, which we can use to evaluate every statement in your body, and print the result.
+With `use`, we tell that what `+` does is evaluating (the evaluation action is denoted by `$`) its operands, then adding them ; it goes similarly for the others (arguments to `#number` are handed by Micro as strings, so we `parseInt` them to get a usable number). What `use` returns is a `Evaluator`, `$`, which we can use to evaluate every statement in your body, and print the result.
 
 Should you try to run that code now, Micro will complain, because a little thing is missing : a `lift` function. If you want to find out more about `lift`, see the [advanced handbook](Advanced%20Handbook.md), as we are not gonna cover it here. Just know customizing it is an advanced feature that can come in handy ; most of the time, however, taking `lift = s => s` is amply enough.
 
@@ -107,7 +107,7 @@ You can now instantiate a runner with `let runner = new DemoRunner`, and run any
 
 Should print `8`, `-6` and `1.0`.
 
-> **NOTE** : Some mathematical expressions, such as `-1` or `1+2+3`, will raise an error from Micro. This is normal, and the reason why, as well as the (minor) fix, are detailed in the [advanced handbook](Advanced%20Handbook.md#11-arity).
+> **NOTE** : Some mathematical expressions, such as `-1` or `1+2+3`, will raise an error from Micro. This is normal, and the reason why, as well as the (minor) fix, are detailed in the [advanced handbook](Advanced%20Handbook.md#11-arity-and-precedence).
 
 ## Output control
 

@@ -2,31 +2,30 @@
 # MICRO SYNTAX REFERENCE  
 
 
-If you read the beginner's handbook first, that's great, else I strongly advise you to do so. In this syntax reference we are going to explore the different syntactic possibilities that are at your disposal when designing a new language with Micro.
+Before reading this, you should probably check out the [beginner's guide](Beginner%20Handbook.md) first. If you already did, let's get started ! In this syntax reference we are going to explore the different syntactic features that are at your disposal when designing a new language with Micro. If you need a summary of all that's said here, check the cheat sheet.
 
 ## Basic syntax
 
 
-At its core, any Micro script consists of a sequence of expressions, separated by semicolons. The last semicolon of a script is optional (and, generally speaking, the last semicolon of everything is). Line breaks and spaces are irrelevant. Expressions are made out of operators, binding together literals ; said literals are strings of the form `'lit` or ``` '`a longer literal` ``` (a single quotation mark followed by any sequence of caracters enclosed in backquotes) :
+At its core, any Micro script consists of a sequence of expressions, separated by semicolons. The last semicolon of a script is optional (and, generally speaking, the last semicolon of everything is). Line breaks and spaces are irrelevant. Expressions are made out of operators, binding together literals ; said literals are strings of the form `'lit` or ``` '`a longer literal` ``` (a single quotation mark followed by any sequence of caracters enclosed in backquotes). Operators (and macros, which we'll see later) are Micro's core : when we say "defining your syntax", we mean "choosing which operator can and cannot appear, with which arity, and which precedence". Micro then handles the rest for you. This, for instance, would be a valid script, should we have chosen to include operators `+`, `-`, `||` and `@` as a part of our language :
 
 ```
-## This is a valid script
+## Works !
 'x-'y;
 '`hello` + '` world ` + '`!`;
 'a || 'b@'c;                  
 ```
 
-As you have noticed, comments start with `##` and end at the line break. They can also be multiline comments wrapped inside a `#- -#` pair.
+As you have noticed, comments start with `##` and end at the line break. They can also be multiline comments wrapped inside a `#' #'` pair.
 ```
 ## This is a comment
-#- 
+#' 
 And 
 so 
 is 
 this
--#
+#'
 ```
-
 
 
 There's two kind of operators, that differ only by their syntax : symbolic operators (any combination of these symbols : `&|~^@=+-*%/:.,?!<>`), and hash operators. These start with a `#` (hence the name), followed by one or more letters. For instance, this is the hash operator `#in` applied to the literals `'x` and `'list` :
@@ -53,7 +52,7 @@ If there's an ambiguity, enclose the problematic operator in square brackets or 
 ```
 
 
-Micro "packs" together operands to a same operator, so `1+2+3` is neither `(1+2)+3`, nor `1+(2+3)`, but the operator `+` applied to `1`, `2` and `3` simultaneously, effectively turning + into a ternary (3-operands) operator here. The explicit pack syntax allows to rewrite it in a more compact form if needed.
+Micro "packs" together operands to a same operator, so `'a + 'b + 'c` is neither `('a+'b)+'c`, nor `'a+('b+'c)`, but the operator `+` applied to `'a`, `'b` and `'c` simultaneously, effectively turning `+` into a ternary (3-operands) operator here. The explicit pack syntax allows to rewrite it in a more compact form if needed.
 ```
 [#op a;b;c;...;z] <=> a #op b #op c #op ... #op z
 ```
@@ -140,7 +139,11 @@ But if `.` has higher precedence than `#call`, then :
 a.b() <=> (a.b)()
 ```
 
-Like we've seen, primitives also are implicit operators. `#string` differs a bit from the two others in the fact it got additionnal semantics. Should string formatting be used, it will get additionnal arguments :
+Like we've seen, primitives also are implicit operators. There's a bit more than what we saw earlier.
+
+### String formatting
+
+`#string` supports string formatting, as in :
 
 ```
 "Hi, {name} !"  <=>  [#string '`Hi, `; name; '` !`]
@@ -151,6 +154,20 @@ Due to how it is implemented, a call to `#string` that emanated from a string fo
 ```
 "{expr}"  <=>  [#string '``; expr; '``];
 ```
+
+That means you can rely on that invariant for your `#string` implementation.
+
+If you want to disable string formatting, just set `#string`'s arity to 1.
+
+### Number formats
+
+If your number starts with `0<some letter>`, as `0x` or `0b`, any alphanumeric characters following it are parsed, until a space or a nonalphanumeric character is encountered. Then, a call to `#number` is generated, with its first argument being that sequence of alphanumerics as a literal, and its second argument the letter following the `0` (also as a literal). For example, `0x1f2` is translated as ``[#number, '`1f2`, 'x]``. Be careful : **any** sequence of alphanumerics is accepted, even if it does not appear to match the number format (`0b999`, for instance, would be parsed without triggering any errors). You must hence take care of those edge cases yourself. 
+
+Like with string formatting, set `#number` arity to 1 to disable that feature.
+
+### And `#name` ?
+
+For now, `#name` does not have any special semantics. That may change in the future.
 
 
 ## Macros

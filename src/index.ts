@@ -1,9 +1,9 @@
 /** 
  * @packageDocumentation 
  * 
- * @document documents/Syntax Reference.md
- * @document documents/Advanced Handbook.md
  * @document documents/Beginner Handbook.md
+ * @document documents/Advanced Handbook.md
+ * @document documents/Syntax Reference.md
 */
 
 export * from "./ast"

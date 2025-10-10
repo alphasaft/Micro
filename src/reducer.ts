@@ -87,8 +87,9 @@ export function unwrapError<E>(e: E): Unwrapped<E> {
     return e instanceof ReducerError ? e.unwrap() : e as Unwrapped<E>
 }
 
-type Unwrapped<Error> = Error extends ReducerError<infer Inner> ? Inner : Error
+export type Unwrapped<Error> = Error extends ReducerError<infer Inner> ? Inner : Error
 
+export type { ReducerError }
 class ReducerError<Error> {
     private constructor(private err: Error, private stack: string[]) {}
 

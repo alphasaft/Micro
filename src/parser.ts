@@ -145,10 +145,6 @@ export abstract class MicroParser {
     private makeLiteral(token: Token): LiteralAST {
         return { type: "literal", value: token.value, metadata: token.metadata }
     }
-    
-    private makePrimitiveOperation(op: string, token: Token): OpAST {
-        return this.makeOperation(op, [this.makeLiteral(token)], token.metadata )
-    } 
 
 
     private parseExpressionSequence(tokens: TokenStream, end: TokenKind): AST[] {
@@ -175,11 +171,35 @@ export abstract class MicroParser {
     }
     
     private parseNumber(tokens: TokenStream): AST {
-        return this.makePrimitiveOperation(MicroParser.numberOp, tokens.next())
+        let numberToken = tokens.expect(TokenKind.NUMBER)
+
+        let literal = numberToken.value
+        let format: LiteralAST | null = null
+        let value: LiteralAST
+        let src = numberToken.metadata.src
+        let start = numberToken.metadata.span[0]
+        if (literal[0] === '0' && literal.length > 1) {
+            format = { type: "literal", value: literal[1], metadata: { src: src, span: [start+1, start+2] } }
+            value = { type: "literal", value: literal.substring(2), metadata: { src: src, span: [start+2, start+literal.length-2] } }
+        } else {
+            value = this.makeLiteral(numberToken)
+        }
+
+        return this.makeOperation(
+            MicroParser.numberOp, 
+            format !== null ? [value, format] : [value], 
+            numberToken.metadata
+        )
     }
 
     private parseName(tokens: TokenStream): AST {
-        return this.makePrimitiveOperation(MicroParser.nameOp, tokens.expect(TokenKind.IDENTIFIER))
+        let nameToken = tokens.expect(TokenKind.IDENTIFIER)
+
+        return this.makeOperation(
+            MicroParser.nameOp, 
+            [this.makeLiteral(nameToken)], 
+            nameToken.metadata
+        )
     }
     
     private parseString(tokens: TokenStream): AST {
