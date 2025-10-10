@@ -123,7 +123,7 @@ And so on. `lift` is kind of a (really) advanced feature, but it's important to 
 
 Micro ships a few utility functions to write cleaner reducers faster. Among them are :
 
-* `plain` : This creates an operator reducer that just evaluates its operands before performing some computation with them. `plain((a,b) => a+b)` is the same as `($,a,b) => $(a)+$(b)`, and is clearer. Operator reducers that can be written with `plain` are called plain operators. An example of an operator reducer than isn't plain is given in the [AST manipulation](#3-ast-manipulation) section.
+* `plain` : This creates an operator reducer that just evaluates its operands before performing some computation with them. `plain((a,b) => a+b)` is the same as `($,a,b) => $(a)+$(b)`, and is clearer.
 
 * `plar` and `prar` : Like `plain`, these create an operator reducer that directly evaluate their arguments and perform some computation with them. `plar` stands for Plain Left-Associative Reducer, and `plar(f)` is `($, ...args) => args.map(arg => $(arg)).reduce(f)`. Similaly, `prar` is Plain Right-Associative Reducer. 
 
@@ -133,7 +133,7 @@ A lot of reducers you'll write will follow these patterns, so remember they're h
 
 ### 2.1 Body, head and limbs
 
-As you might have seen from the [syntax reference](Syntax%20Reference.md), a macro can actually be much more than what is presented in the [beginner's handbook](Beginner%20Handbook.md). There's several different possible syntaxes for a macro (`inline`, `block` and `declarative`, once again see the syntax reference), but in the end all of these are parsed into the same format : a `MacroAST`. It is a simple data object with six members :
+As you might have seen from the [syntax reference](Syntax%20Reference.md), a macro can actually be much more than what is presented in the [beginner's handbook](Beginner%20Handbook.md). There's several different possible syntaxes for a macro (`inline`, `block` and `declarative`, once again see the syntax reference), but in the end all of these are parsed into the same format : a `MacroAST`. It is a plain data object with six members :
 
 * `type` : Always `"macro"`. This is to distinguish it from the other AST types.
 * `name` : The name of the invoked macro.
@@ -571,13 +571,13 @@ Generally speaking, when building systems with which external users will interac
 
 Whenever throwing an error within a reducer (no matter what that error actually is : a `string`, a built-in error class, or even one you create), that reducer will catch it, wrap it (if it's not already wrapped) as a `ReducerError` instance, and rethrow it. The huge advantage of `ReducerError` is that it's able to gain a stack trace as it bubbles up the reducers. When it finally bubbles from `script`, it is catched by the `MicroReducer.handle` function. Here, the error is converted to string (using `ReducerError.toString`) and thrown. This result in a nicely formatted error message tracking the error down to the exact piece of code that triggered it.
 
-Now, you may ask why I'm telling you all of this. Mostly because you might want to opt-out from all this autowrap stuff from time to time. For that, there's the native `unwrapError(e)`, that returns `e` itself if it's not a `ReducerError`, otherwise unwraps it. Specifically, when catching errors while uing Micro, it is a good pratice to always `unwrapError`s before handling them, just in case.
+Now, you may ask why I'm telling you all of this. First because that's cool to have an error system that has your back, but also and foremost because you might want to opt-out from all this autowrap stuff from time to time. For that, there's the native `unwrapError(e)`, that returns `e` itself if it's not a `ReducerError`, otherwise unwraps it. Specifically, when catching errors while using Micro, it is a good pratice to always `unwrapError`s before handling them, just in case.
 
 > **NOTE** : `ReducerError` also has an `unwrap` method that, well, unwraps it. The big downside is that if you call `e.unwrap()` when `e` isn't a `ReducerError`, this will make the program crash, while `unwrapError` takes care of that case.
 
 ### 5.2 Contextualizing
 
-As we've seen before, `$` may take two arguments (as in `$(ast, lang.expr)`). That second argument must be a function, and `$(ast, f)` is almost `f($(ast))`. Almost. If any error happens while running `f($(ast))`, it will gain a stack frame telling it happened within the piece of code that produced `ast`. On the other hand, in `f($(ast))`, if `$(ast)` did not produce an error but `f` did, that error will be understood as happening in the external reducer, which can be confusing. Passing `f` as the second argument to `$` fixes that. 
+As we've seen before, `$` can take two arguments (as in `$(ast, lang.expr)`). That second argument must be a function, and `$(ast, f)` is almost `f($(ast))`. Almost. If any error happens while running `f($(ast))`, it will gain a stack frame telling it happened within the piece of code that produced `ast`. On the other hand, in `f($(ast))`, if `$(ast)` did not produce an error but `f` did, that error will be understood as happening in the external reducer, which can be confusing. Passing `f` as the second argument to `$` fixes that. 
 
 > **NOTE** : On the other hand, every built-in check function, like `checkIsStringPrimitive`, will report the error, if there's one, as coming from the ast passed as their arguments.
 
