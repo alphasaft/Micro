@@ -443,9 +443,9 @@ As your language grows bigger, you might want to have a stronger grasp on the sy
 
 * The third is that, even if there's something that's clearly a syntax error somewhere in the script, everything will run as usual, and the program will crash only when you get there.
 
-Both problems are negligeable in the case of a small language : a very little amount of checks will be needed, and the separation of concerns is something it is important to worry about, but far more in big project than in small ones. However, adressing them can't be a bad things, and that's what we'll do here.
+All three problems are negligeable in the case of a small language : a very little amount of checks will be needed, and the separation of concerns is something it is important to worry about, but far more in big project than in small ones. However, adressing them can't be a bad things, and that's what we'll do here.
 
-The `MicroRunner` class supports an additionnal property, `checkers`, which is a list of `MicroReducer`s. Unlike our main reducers, the result they return after running their main `script` reducer is discarded. Right after parsing the script, the checkers are ran in the provided order. If any of them deem the script to be incorrect at some location, they can throw an exception ; in that case, the whole process is immediately stopped and the script is not reduced by the `MicroRunner.reducer`. On the other hand, if all checkers run smoothly, then the script is actually reduced. Writing a checker is just like writing the main reducer : you write reducers (called checkers in that context) for each operator and macro. `$`-ing an AST, as usual, invokes the corresponding checker, so `$` is to be read as "check" when writing a checker. As the API remains the exact same, every `MicroReducer` feature, like scoping, work as usual. Notice, however, that unlike the main `reducer`, whose `script` reducer's return value is the thing that `MicroRunner.run` returns, the results produced by all checkers are simply discarded should they succeed.
+The `MicroRunner` class supports an additionnal property, `checkers`, which is a list of `MicroReducer`s. Unlike our main reducers, the result they return after running their main `script` reducer is discarded. Right after parsing the script, the checkers are ran in the provided order. If any of them deems the script to be incorrect at some location, they can throw an exception ; in that case, the whole process is immediately stopped and the script is not reduced by the `MicroRunner.reducer`. On the other hand, if all checkers run smoothly, then the script is actually reduced. Writing a checker is just like writing the main reducer : you write reducers (called checkers in that context) for each operator and macro. `$`-ing an AST, as usual, invokes the corresponding checker, so `$` is to be read as "check" when writing a checker. As the API remains the exact same, every `MicroReducer` feature, like scoping, work as usual. Notice, however, that unlike the main `reducer`, whose `script` reducer's return value is the thing that `MicroRunner.run` returns, the results produced by all checkers are simply discarded should they succeed.
 
 Does it solve our problems ?
 
@@ -549,9 +549,9 @@ import B from #print "lol";
 Would both trigger a syntax error. The reasons are :
 
 * For the first one, `+` expects both arguments to be `lang.expr`, but `import` returns a `lang.stmt.imprt`, so it will crash.
-* For the second one, `import` uses `checkIsStringLiteral` on `#print "lol"`, which of course throws.
+* For the second one, `import` uses `checkIsStringPrimitive` on `#print "lol"`, which of course throws.
 
-Note that the `lang` object twists the way property access works (it's implemented using JS' native `Proxy` class, if you're wondering), meaning you can actually use any specifier you'd like : `lang.my.brand.new.type.specifier` works perfectly fine and creates a new type specifier named exactly that. Another thing of note is that the check allow for more specificity : `lang.expr.anonymousFunc`, for example, can be considered as a simple `lang.expr` (but the converse is, of course, not true).
+Note that the `lang` object twists the way property access works (it's implemented using JS' native `Proxy` class, if you're wondering), meaning you can actually use any specifier you'd like : `lang.my.brand.new.type.specifier` works perfectly fine and creates a new type specifier named exactly that. Another thing of note is that the type check allows for more specificity : `lang.expr.anonymousFunc`, for example, can be considered as a simple `lang.expr` (but the converse is, of course, not true).
 
 Also, don't forget to add the checker to the runner !
 
@@ -577,9 +577,9 @@ Now, you may ask why I'm telling you all of this. First because that's cool to h
 
 ### 5.2 Contextualizing
 
-As we've seen before, `$` can take two arguments (as in `$(ast, lang.expr)`). That second argument must be a function, and `$(ast, f)` is almost `f($(ast))`. Almost. If any error happens while running `f($(ast))`, it will gain a stack frame telling it happened within the piece of code that produced `ast`. On the other hand, in `f($(ast))`, if `$(ast)` did not produce an error but `f` did, that error will be understood as happening in the external reducer, which can be confusing. Passing `f` as the second argument to `$` fixes that. 
+As we've seen before, `$` can take two arguments (as in `$(ast, lang.expr)`). That second argument must be a function, and `$(ast, f)` is almost `f($(ast))`. Almost. If any error happens while running `$(ast, f)`, it will gain a stack frame telling it happened within the piece of code that produced `ast`. On the other hand, in `f($(ast))`, if `$(ast)` did not produce an error but `f` did, that error will be understood as happening in the external reducer, which can be confusing. Passing `f` as the second argument to `$` fixes that. 
 
-> **NOTE** : On the other hand, every built-in check function, like `checkIsStringPrimitive`, will report the error, if there's one, as coming from the ast passed as their arguments.
+> **NOTE** : On the other hand, every built-in check function, like `checkIsStringPrimitive`, will report the error, if there's one, as coming from the ast passed as their argument.
 
 Also, sometimes, you will feel the need to add bits of context to what's happening, so that it's clearer to your users how the error happened. For that, you can use the `contextualize(msg, block)` function. It simply calls `block` and returns its result, but, if there's an error, it (wraps it in a `ReducerError` and) adds `msg` to its stack trace. 
 

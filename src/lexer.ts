@@ -1,6 +1,9 @@
+/** @packageDocument @internal */
+
 import { Metadata, summarize } from "./metadata"
 
 
+/** @hidden */
 export enum MicroTokenKind {
     SEMICOLON = ';',
     TICK = "'",
