@@ -128,7 +128,7 @@ class DemoParser extends MicroParser {
 
 The arity of the macro is `0`, meaning it takes no arguments, and its kind is `block` ; those two things mean that syntactically speaking the macro is only an identifier followed by some statements enclosed in curly brackets.
 
-> **NOTE** : More about the different macro syntaxes and the way to declare them in the [advanced handbook](Advanced%20Handbook.md#2-macros) and the [syntax reference](Syntax%20Reference.md). We'll take the following definition for now : a macro is a specific block of code preceded by an identifier.
+> **NOTE** : More about the different macro syntaxes and the way to declare them in the [advanced handbook](Advanced%20Handbook.md#2-advanced-macro-features) and the [syntax reference](Syntax%20Reference.md). We'll take the following definition for now : a macro is a specific block of code preceded by an identifier.
 
 Next, as before, we write a reducer. Macro reducers work the same way as the `script` function : they take a `use` function, a `body` which is a list of statements, and do stuff with them.
 

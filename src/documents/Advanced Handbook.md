@@ -4,11 +4,11 @@ If you read the [beginner's handbook](Beginner%20Handbook.md) first, that's grea
 
 ## Table of contents
 
-1. [Operators advanced features](#1-advanced-operator-features)
+1. [Advanced operators features](#1-advanced-operator-features)
     1. [Arity and precedence](#11-arity-and-precedence)
     2. [Primitives & lift](#12-primitives--lift)
     3. [Utility functions](#13-utility-functions)
-2. [Macros advanced features](#2-macros)
+2. [Advanced macro features](#2-advanced-macro-features)
     1. [Head, body and limbs](#21-body-head-and-limbs)
     2. [Scoping](#22-scoping)
     3. [Delegating](#23-delegating)
@@ -64,7 +64,7 @@ let minusReducer = ($, a, ...xs) => {
 }
 ``` 
 
-Another thing to keep in mind is the precedence. The order in which you declare operators in the `MicroParser` is their relative precedence, that allows Micro to know how composite expressions like `1+2*3` must be read. Here, you might be tempted to answer that the question isn't really one, as everybody would know `1+2*3` is `1+(2*3)` and not `(1+2)*3`. But that's simply a convention, although well-established : what about an expression with weird operators, like `a @ b &~ c` ? Is it `(a @ b) &~ c`, or `a @ (b &~ c)` ? Precedence allows to solve that problem, by specifiying which operators "go first". Here, if `@` has higher precedence than `&~`, it would be parser as `(a @ b) &~ c` ; if `&~` has higher precedence than `@`, `a @ (b &~ c)`. 
+Another thing to keep in mind is the precedence. The order in which you declare operators in the `MicroParser` is their relative precedence, that allows Micro to know how composite expressions like `1+2*3` must be read. Here, you might be tempted to answer that the question isn't really one, as everybody would know `1+2*3` is `1+(2*3)` and not `(1+2)*3`. But that's simply a convention, although well-established : what about an expression with weird operators, like `a @ b &~ c` ? Is it `(a @ b) &~ c`, or `a @ (b &~ c)` ? Precedence allows to solve that problem, by specifiying which operators "go first". To have `a @ b &~ c` be read as `(a @ b) &~ c`, you would have to declare `@` before `&~`.
 
 Note that two operators passed side by side in a list, as `+` and `-` in :
 
@@ -73,8 +73,8 @@ class DemoParser extends MicroParser {
     constructor() {
         super({
             operators: [
-                [{ name: '+', arity: [1, Infinity] }, { name: '-', arity: [1, Infinity] }],
                 [{ name: '*', arity: [2, Infinity] }, { name: '/', arity: [2, Infinity] }],
+                [{ name: '+', arity: [1, Infinity] }, { name: '-', arity: [1, Infinity] }],
             ]
         })
     }
@@ -118,7 +118,7 @@ Micro ships a few utility functions to write cleaner reducers faster. Among them
 
 A lot of reducers you'll write will follow these patterns, so remember they're here.
 
-## 2. Macros
+## 2. Advanced macro features
 
 ### 2.1 Body, head and limbs
 
