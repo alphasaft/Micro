@@ -9,7 +9,7 @@ Before reading this, you should probably check out the [beginner's guide](Beginn
 
 At its core, any Micro script consists of a sequence of expressions, separated by semicolons. The last semicolon of a script is optional (and, generally speaking, the last semicolon of everything is). Line breaks and spaces are irrelevant. Expressions are made out of operators, binding together literals ; said literals are strings of the form `'lit` or ``` '`a longer literal` ``` (a single quotation mark followed by any sequence of caracters enclosed in backquotes). Operators (and macros, which we'll see later) are Micro's core : when we say "defining your syntax", we mean "choosing which operator can and cannot appear, with which arity, and which precedence". Micro then handles the rest for you. This, for instance, would be a valid script, should we have chosen to include operators `+`, `-`, `||` and `@` as a part of our language :
 
-```
+```mc
 ## Works !
 'x-'y;
 '`hello` + '` world ` + '`!`;
@@ -17,7 +17,7 @@ At its core, any Micro script consists of a sequence of expressions, separated b
 ```
 
 As you have noticed, comments start with `##` and end at the line break. They can also be multiline comments wrapped inside a `#' '#` pair.
-```
+```mc
 ## This is a comment
 #' 
 And 
