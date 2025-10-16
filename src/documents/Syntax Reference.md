@@ -139,7 +139,7 @@ But if `.` has higher precedence than `#call`, then :
 a.b() <=> (a.b)()
 ```
 
-Like we've seen, primitives also are implicit operators. There's a bit more than what we saw earlier.
+Like we've seen, primitives also are implicit operators. There's a bit more to it than waht we saw earlier.
 
 ### String formatting
 
