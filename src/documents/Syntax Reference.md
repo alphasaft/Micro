@@ -28,7 +28,7 @@ this
 ```
 
 
-There's two kind of operators, that differ only by their syntax : symbolic operators (any combination of these symbols : `&|~^@=+-*%/:.,?!<>`), and hash operators. These start with a `#` (hence the name), followed by one or more letters. For instance, this is the hash operator `#in` applied to the literals `'x` and `'list` :
+There's two kind of operators, that differ only by their syntax : symbolic operators (any combination of these symbols : `&|~^@=+-*%/:.,?!<>`), and hash operators. These start with a `#` (hence the name), followed by one or more alphanumeric characters. For instance, this is the hash operator `#in` applied to the literals `'x` and `'list` :
 ```mc
 'x #in 'list;
 ```
