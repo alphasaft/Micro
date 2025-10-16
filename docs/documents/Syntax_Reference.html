@@ -1,4 +1,4 @@
-<!DOCTYPE html><html class="default" lang="en" data-base="../"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>Syntax Reference | micro-lang</title><meta name="description" content="Documentation for micro-lang"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/icons.js" id="tsd-icons-script"></script><script async src="../assets/search.js" id="tsd-search-script"></script><script async src="../assets/navigation.js" id="tsd-nav-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar"><div class="tsd-toolbar-contents container"><a href="../index.html" class="title">micro-lang</a><div id="tsd-toolbar-links"></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/><ul role="listbox" id="tsd-search-results"></ul><div id="tsd-search-status" aria-live="polite" aria-atomic="true"><div>Preparing search index...</div></div></dialog><a href="#" class="tsd-widget menu" id="tsd-toolbar-menu-trigger" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-menu"></use></svg></a></div></header><div class="container container-main"><div class="col-content"><div class="tsd-page-title"><ul class="tsd-breadcrumb" aria-label="Breadcrumb"><li><a href="" aria-current="page">Syntax Reference</a></li></ul></div><div class="tsd-panel tsd-typography"><h1 id="micro-syntax-reference" class="tsd-anchor-link">MICRO SYNTAX REFERENCE<a href="#micro-syntax-reference" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h1><p>Before reading this, you should probably check out the <a href="Beginner_Handbook.html">beginner's guide</a> first. If you already did, let's get started ! In this syntax reference we are going to explore the different syntactic features that are at your disposal when designing a new language with Micro. If you need a summary of all that's said here, check the <a href="Syntax_Reference_Cheatsheet.pdf">cheat sheet</a>.</p>
+<!DOCTYPE html><html class="default" lang="en" data-base="../"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>Syntax Reference | micro-lang</title><meta name="description" content="Documentation for micro-lang"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/icons.js" id="tsd-icons-script"></script><script async src="../assets/search.js" id="tsd-search-script"></script><script async src="../assets/navigation.js" id="tsd-nav-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar"><div class="tsd-toolbar-contents container"><a href="../index.html" class="title">micro-lang</a><div id="tsd-toolbar-links"></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/><ul role="listbox" id="tsd-search-results"></ul><div id="tsd-search-status" aria-live="polite" aria-atomic="true"><div>Preparing search index...</div></div></dialog><a href="#" class="tsd-widget menu" id="tsd-toolbar-menu-trigger" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-menu"></use></svg></a></div></header><div class="container container-main"><div class="col-content"><div class="tsd-page-title"><ul class="tsd-breadcrumb" aria-label="Breadcrumb"><li><a href="" aria-current="page">Syntax Reference</a></li></ul></div><div class="tsd-panel tsd-typography"><h1 id="micro-syntax-reference" class="tsd-anchor-link">MICRO SYNTAX REFERENCE<a href="#micro-syntax-reference" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h1><p>Before reading this, you should probably check out the <a href="Beginner_Handbook.html">beginner's guide</a> first. If you already did, let's get started ! In this syntax reference we are going to explore the different syntactic features that are at your disposal when designing a new language with Micro. If you need a summary of all that's said here, check the cheat sheet.</p>
 <h2 id="basic-syntax" class="tsd-anchor-link">Basic syntax<a href="#basic-syntax" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><p>At its core, any Micro script consists of a sequence of expressions, separated by semicolons. The last semicolon of a script is optional (and, generally speaking, the last semicolon of everything is). Line breaks and spaces are irrelevant. Expressions are made out of operators, binding together literals ; said literals are strings of the form <code>'lit</code> or <code>'`a longer literal`</code> (a single quotation mark followed by any sequence of caracters enclosed in backquotes). Operators (and macros, which we'll see later) are Micro's core : when we say &quot;defining your syntax&quot;, we mean &quot;choosing which operator can and cannot appear, with which arity, and which precedence&quot;. Micro then handles the rest for you. This, for instance, would be a valid script, should we have chosen to include operators <code>+</code>, <code>-</code>, <code>||</code> and <code>@</code> as a part of our language :</p>
 <pre><code class="mc">## Works !
 'x-'y;
@@ -17,24 +17,27 @@ this
 </code><button type="button">Copy</button></pre>
 
 <p>There's two kind of operators, that differ only by their syntax : symbolic operators (any combination of these symbols : <code>&amp;|~^@=+-*%/:.,?!&lt;&gt;</code>), and hash operators. These start with a <code>#</code> (hence the name), followed by one or more letters. For instance, this is the hash operator <code>#in</code> applied to the literals <code>'x</code> and <code>'list</code> :</p>
-<pre><code><span class="hl-3">&#39;x #in &#39;</span><span class="hl-2">list</span><span class="hl-1">;</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">'x #in 'list;
+</code><button type="button">Copy</button></pre>
 
 <p>You can use hash operators just like normal operators, everywhere the latter appear :</p>
-<pre><code><span class="hl-3">&#39;condition = &#39;</span><span class="hl-2">x</span><span class="hl-1"> #</span><span class="hl-4">in</span><span class="hl-1"> </span><span class="hl-3">&#39;list &amp;&amp; &#39;</span><span class="hl-2">y</span><span class="hl-1"> #</span><span class="hl-2">notin</span><span class="hl-1"> </span><span class="hl-3">&#39;list</span><span class="hl-10">;</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">'condition = 'x #in 'list && 'y #notin 'list;
+</code><button type="button">Copy</button></pre>
 
 <p>Micro allows unary operators in a prefix form, as well as nullary operators (zero operands) :</p>
-<pre><code><span class="hl-1">#</span><span class="hl-2">print</span><span class="hl-1"> </span><span class="hl-3">&#39;hi;   ## O</span><span class="hl-10">K</span><br/><span class="hl-1">?;          ## </span><span class="hl-11">OK</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">#print 'hi;   ## OK
+?;          ## OK
+</code><button type="button">Copy</button></pre>
 
 <p>If there's an ambiguity, enclose the problematic operator in square brackets or in parentheses :</p>
-<pre><code><span class="hl-1">? || </span><span class="hl-3">&#39;x &lt;=&gt; (? (|| 3));  ## Probably not what was intende</span><span class="hl-10">d</span><br/><span class="hl-1">[?] || </span><span class="hl-3">&#39;x                ## O</span><span class="hl-10">K</span><br/><span class="hl-1">(?) || </span><span class="hl-3">&#39;x                ## O</span><span class="hl-10">K</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">? || 'x <=> (? (|| 3));  ## Probably not what was intended
+[?] || 'x                ## OK
+(?) || 'x                ## OK
+</code><button type="button">Copy</button></pre>
 
 <p>Micro &quot;packs&quot; together operands to a same operator, so <code>'a + 'b + 'c</code> is neither <code>('a+'b)+'c</code>, nor <code>'a+('b+'c)</code>, but the operator <code>+</code> applied to <code>'a</code>, <code>'b</code> and <code>'c</code> simultaneously, effectively turning <code>+</code> into a ternary (3-operands) operator here. The explicit pack syntax allows to rewrite it in a more compact form if needed.</p>
-<pre><code><span class="hl-1">[#</span><span class="hl-2">op</span><span class="hl-1"> </span><span class="hl-2">a</span><span class="hl-1">;</span><span class="hl-2">b</span><span class="hl-1">;</span><span class="hl-2">c</span><span class="hl-1">;...;</span><span class="hl-2">z</span><span class="hl-1">] &lt;=&gt; </span><span class="hl-2">a</span><span class="hl-1"> #</span><span class="hl-2">op</span><span class="hl-1"> </span><span class="hl-2">b</span><span class="hl-1"> #</span><span class="hl-2">op</span><span class="hl-1"> </span><span class="hl-2">c</span><span class="hl-1"> #</span><span class="hl-2">op</span><span class="hl-1"> ... #</span><span class="hl-2">op</span><span class="hl-1"> </span><span class="hl-2">z</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">[#op a;b;c;...;z] <=> a #op b #op c #op ... #op z
+</code><button type="button">Copy</button></pre>
 
 <p>The difference between both forms is purely syntactic.</p>
 <h2 id="primitives" class="tsd-anchor-link">Primitives<a href="#primitives" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><p>Since the <code>'lit</code> syntax can be quite clumsy, Micro provides syntactic sugar to ease up the burden, by introducing primitives. Their name is a bit misleading : the true (and only) primitive building block of Micro are literals ; primitives, are, however, some kind a middle ground between the very low-level literals and more complex code structures.</p>
@@ -46,53 +49,67 @@ this
 </ul>
 <p>With these rules, <code>x = y+1</code>, for instance, becomes under the hood <code>[#name 'x] = [#name 'y] + [#number '`0`]</code>. Even if it's not recommended, explicitely using <code>#string</code>, <code>#name</code> and <code>#number</code> in a script is perfectly legal.</p>
 <h2 id="precedence-and-arity" class="tsd-anchor-link">Precedence and arity<a href="#precedence-and-arity" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><p>To know how an expression must be parsed, Micro relies on precedence ; this is a fancy word to say 'some operators go before others'. If <code>*</code> has higher precedence than <code>+</code> :</p>
-<pre><code><span class="hl-6">1</span><span class="hl-1">+</span><span class="hl-6">2</span><span class="hl-1">*</span><span class="hl-6">3</span><span class="hl-1"> &lt;=&gt; </span><span class="hl-6">1</span><span class="hl-1">+(</span><span class="hl-6">2</span><span class="hl-1">*</span><span class="hl-6">3</span><span class="hl-1">);</span><br/><span class="hl-6">1</span><span class="hl-1">*</span><span class="hl-6">2</span><span class="hl-1">+</span><span class="hl-6">3</span><span class="hl-1"> &lt;=&gt; (</span><span class="hl-6">1</span><span class="hl-1">*</span><span class="hl-6">2</span><span class="hl-1">)+</span><span class="hl-6">3</span><span class="hl-1">;</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">1+2*3 <=> 1+(2*3);
+1*2+3 <=> (1*2)+3;
+</code><button type="button">Copy</button></pre>
 
 <p>If <code>#add</code> and <code>#sub</code> have the same precedence, the leftmost one always wins :</p>
-<pre><code><span class="hl-6">1</span><span class="hl-1"> #</span><span class="hl-2">add</span><span class="hl-1"> </span><span class="hl-6">2</span><span class="hl-1"> #</span><span class="hl-2">sub</span><span class="hl-1"> </span><span class="hl-6">3</span><span class="hl-1"> &lt;=&gt; (</span><span class="hl-6">1</span><span class="hl-1"> #</span><span class="hl-2">add</span><span class="hl-1"> </span><span class="hl-6">2</span><span class="hl-1">) #</span><span class="hl-2">sub</span><span class="hl-1"> </span><span class="hl-6">3</span><span class="hl-1">;</span><br/><span class="hl-6">1</span><span class="hl-1"> #</span><span class="hl-2">sub</span><span class="hl-1"> </span><span class="hl-6">2</span><span class="hl-1"> #</span><span class="hl-2">add</span><span class="hl-1"> </span><span class="hl-6">3</span><span class="hl-1"> &lt;=&gt; (</span><span class="hl-6">1</span><span class="hl-1"> #</span><span class="hl-2">sub</span><span class="hl-1"> </span><span class="hl-6">2</span><span class="hl-1">) #</span><span class="hl-2">add</span><span class="hl-1"> </span><span class="hl-6">3</span><span class="hl-1">;</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">1 #add 2 #sub 3 <=> (1 #add 2) #sub 3;
+1 #sub 2 #add 3 <=> (1 #sub 2) #add 3;
+</code><button type="button">Copy</button></pre>
 
 <p>Micro also enforces operator arity, which is yet another complicated word to mean 'how much operands an operator accepts'. So if + is declared with an arity of 2 :</p>
-<pre><code><span class="hl-6">1</span><span class="hl-1">+</span><span class="hl-6">2</span><span class="hl-1">;    ## </span><span class="hl-11">OK</span><br/><span class="hl-6">1</span><span class="hl-1">+</span><span class="hl-6">2</span><span class="hl-1">+</span><span class="hl-6">3</span><span class="hl-1">;  ## </span><span class="hl-11">NO</span><br/><span class="hl-1">+</span><span class="hl-6">1</span><span class="hl-1">;     ## </span><span class="hl-11">NO</span><br/><span class="hl-1">+;      ## </span><span class="hl-11">NO</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">1+2;    ## OK
+1+2+3;  ## NO
++1;     ## NO
++;      ## NO
+</code><button type="button">Copy</button></pre>
 
 <h2 id="implicit-operators" class="tsd-anchor-link">Implicit operators<a href="#implicit-operators" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><p>Some operators are implicitely generated when encountering certain syntactical structures, starting with the <code>#list</code> one.</p>
-<pre><code><span class="hl-1">[</span><span class="hl-2">a</span><span class="hl-1">;</span><span class="hl-2">b</span><span class="hl-1">;</span><span class="hl-2">c</span><span class="hl-1">] &lt;=&gt; [#</span><span class="hl-2">list</span><span class="hl-1"> </span><span class="hl-2">a</span><span class="hl-1">;</span><span class="hl-2">b</span><span class="hl-1">;</span><span class="hl-2">c</span><span class="hl-1">];</span><br/><span class="hl-1">[</span><span class="hl-2">a</span><span class="hl-1">] &lt;=&gt; [#</span><span class="hl-2">list</span><span class="hl-1"> </span><span class="hl-2">a</span><span class="hl-1">];</span><br/><span class="hl-1">[] &lt;=&gt; [#</span><span class="hl-2">list</span><span class="hl-1">];</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">[a;b;c] <=> [#list a;b;c];
+[a] <=> [#list a];
+[] <=> [#list];
+</code><button type="button">Copy</button></pre>
 
 <p>Similarly, we also have <code>#tuple</code> :</p>
-<pre><code><span class="hl-1">(</span><span class="hl-2">a</span><span class="hl-1">;</span><span class="hl-2">b</span><span class="hl-1">;</span><span class="hl-2">c</span><span class="hl-1">) &lt;=&gt; [#</span><span class="hl-2">tuple</span><span class="hl-1"> </span><span class="hl-2">a</span><span class="hl-1">;</span><span class="hl-2">b</span><span class="hl-1">;</span><span class="hl-2">c</span><span class="hl-1">];</span><br/><span class="hl-1">(</span><span class="hl-2">a</span><span class="hl-1">;) &lt;=&gt; [#</span><span class="hl-2">tuple</span><span class="hl-1"> </span><span class="hl-2">a</span><span class="hl-1">];    ## </span><span class="hl-2">Warning</span><span class="hl-1">, </span><span class="hl-2">without</span><span class="hl-1"> </span><span class="hl-2">the</span><span class="hl-1"> </span><span class="hl-3">&#39;;&#39;</span><span class="hl-1">, </span><span class="hl-2">it</span><span class="hl-3">&#39;s understood as a simple parenthesized expression </span><span class="hl-10">!</span><br/><span class="hl-1">() &lt;=&gt; [#</span><span class="hl-2">tuple</span><span class="hl-1">];</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">(a;b;c) <=> [#tuple a;b;c];
+(a;) <=> [#tuple a];    ## Warning, without the ';', it's understood as a simple parenthesized expression !
+() <=> [#tuple];
+</code><button type="button">Copy</button></pre>
 
 <p>Next up are <code>#call</code>...</p>
-<pre><code><span class="hl-7">f</span><span class="hl-1">(</span><span class="hl-2">x</span><span class="hl-1">;</span><span class="hl-2">y</span><span class="hl-1">;</span><span class="hl-2">z</span><span class="hl-1">) &lt;=&gt; [#</span><span class="hl-2">call</span><span class="hl-1"> </span><span class="hl-2">f</span><span class="hl-1">;</span><span class="hl-2">x</span><span class="hl-1">;</span><span class="hl-2">y</span><span class="hl-1">;</span><span class="hl-2">z</span><span class="hl-1">];</span><br/><span class="hl-7">f</span><span class="hl-1">(</span><span class="hl-2">x</span><span class="hl-1">) &lt;=&gt; [#</span><span class="hl-2">call</span><span class="hl-1"> </span><span class="hl-2">f</span><span class="hl-1">;</span><span class="hl-2">x</span><span class="hl-1">];</span><br/><span class="hl-7">f</span><span class="hl-1">() &lt;=&gt; [#</span><span class="hl-2">call</span><span class="hl-1"> </span><span class="hl-2">f</span><span class="hl-1">];</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">f(x;y;z) <=> [#call f;x;y;z];
+f(x) <=> [#call f;x];
+f() <=> [#call f];
+</code><button type="button">Copy</button></pre>
 
 <p>...and <code>#index</code>.</p>
-<pre><code><span class="hl-2">array</span><span class="hl-1">[</span><span class="hl-6">0</span><span class="hl-1">;</span><span class="hl-6">10</span><span class="hl-1">] &lt;=&gt; [#</span><span class="hl-2">index</span><span class="hl-1"> </span><span class="hl-2">array</span><span class="hl-1">;</span><span class="hl-6">0</span><span class="hl-1">;</span><span class="hl-6">10</span><span class="hl-1">];</span><br/><span class="hl-2">array</span><span class="hl-1">[</span><span class="hl-6">0</span><span class="hl-1">] &lt;=&gt; [#</span><span class="hl-2">index</span><span class="hl-1"> </span><span class="hl-2">array</span><span class="hl-1">;</span><span class="hl-6">0</span><span class="hl-1">] &lt;=&gt; </span><span class="hl-2">array</span><span class="hl-1"> #</span><span class="hl-2">index</span><span class="hl-1"> </span><span class="hl-6">0</span><span class="hl-1">;</span><br/><span class="hl-2">array</span><span class="hl-1">[] &lt;=&gt; [#</span><span class="hl-2">index</span><span class="hl-1"> </span><span class="hl-2">array</span><span class="hl-1">];</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">array[0;10] <=> [#index array;0;10];
+array[0] <=> [#index array;0] <=> array #index 0;
+array[] <=> [#index array];
+</code><button type="button">Copy</button></pre>
 
 <p>Note that the thing that's called/indexed can be any valid expression :</p>
-<pre><code><span class="hl-1">(</span><span class="hl-2">obj</span><span class="hl-1">.</span><span class="hl-2">method</span><span class="hl-1">)(</span><span class="hl-2">x</span><span class="hl-1">) &lt;=&gt; [#</span><span class="hl-2">call</span><span class="hl-1"> </span><span class="hl-2">object</span><span class="hl-1">.</span><span class="hl-2">method</span><span class="hl-1">;</span><span class="hl-2">x</span><span class="hl-1">];</span><br/><span class="hl-1">(</span><span class="hl-3">&quot;hello, &quot;</span><span class="hl-1"> + </span><span class="hl-3">&quot;world !&quot;</span><span class="hl-1">)[</span><span class="hl-6">0</span><span class="hl-1">] &lt;=&gt; [#</span><span class="hl-2">index</span><span class="hl-1"> </span><span class="hl-3">&quot;hello, &quot;</span><span class="hl-1">+</span><span class="hl-3">&quot;world !&quot;</span><span class="hl-1">;</span><span class="hl-6">0</span><span class="hl-1">];</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">(obj.method)(x) <=> [#call object.method;x];
+("hello, " + "world !")[0] <=> [#index "hello, "+"world !";0];
+</code><button type="button">Copy</button></pre>
 
 <p>The precedence of <code>#call</code> and <code>#index</code> respectively are used to determine what is called/indexed. For instance, if + has lower precedence than <code>#index</code>, then :</p>
-<pre><code><span class="hl-2">a</span><span class="hl-1">+</span><span class="hl-2">b</span><span class="hl-1">[</span><span class="hl-6">0</span><span class="hl-1">] &lt;=&gt; </span><span class="hl-2">a</span><span class="hl-1">+(</span><span class="hl-2">b</span><span class="hl-1">[</span><span class="hl-6">0</span><span class="hl-1">])</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">a+b[0] <=> a+(b[0])
+</code><button type="button">Copy</button></pre>
 
 <p>But if <code>.</code> has higher precedence than <code>#call</code>, then :</p>
-<pre><code><span class="hl-2">a</span><span class="hl-1">.</span><span class="hl-7">b</span><span class="hl-1">() &lt;=&gt; (</span><span class="hl-2">a</span><span class="hl-1">.</span><span class="hl-2">b</span><span class="hl-1">)()</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">a.b() <=> (a.b)()
+</code><button type="button">Copy</button></pre>
 
 <p>Like we've seen, primitives also are implicit operators. There's a bit more than what we saw earlier.</p>
 <h3 id="string-formatting" class="tsd-anchor-link">String formatting<a href="#string-formatting" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><code>#string</code> supports string formatting, as in :</p>
-<pre><code><span class="hl-3">&quot;Hi, {name} !&quot;</span><span class="hl-1">  &lt;=&gt;  [#</span><span class="hl-2">string</span><span class="hl-1"> </span><span class="hl-3">&#39;`Hi, `; name; &#39;` !`</span><span class="hl-1">]</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">"Hi, {name} !"  <=>  [#string '`Hi, `; name; '` !`]
+</code><button type="button">Copy</button></pre>
 
 <p>Due to how it is implemented, a call to <code>#string</code> that emanated from a string formatting template always begins and ends with a literal, even if said literals must be empty to comply with that rule :</p>
-<pre><code><span class="hl-3">&quot;{expr}&quot;</span><span class="hl-1">  &lt;=&gt;  [#</span><span class="hl-2">string</span><span class="hl-1"> </span><span class="hl-3">&#39;``; expr; &#39;``</span><span class="hl-1">];</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">"{expr}"  <=>  [#string '``; expr; '``];
+</code><button type="button">Copy</button></pre>
 
 <p>That means you can rely on that invariant for your <code>#string</code> implementation.</p>
 <p>If you want to disable string formatting, just set <code>#string</code>'s arity to 1.</p>
@@ -100,53 +117,83 @@ this
 <p>Like with string formatting, set <code>#number</code> arity to 1 to disable that feature.</p>
 <h3 id="and-name-" class="tsd-anchor-link">And <code>#name</code> ?<a href="#and-name-" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p>For now, <code>#name</code> does not have any special semantics. That may change in the future.</p>
 <h2 id="macros" class="tsd-anchor-link">Macros<a href="#macros" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><p>Until there, we've only seem pretty standard - and simple - expressions, built out of literals and operators. But there's more to Micro than just numbers, strings and names, as it comes with something called macros. Macros are yet another kind of operand (meaning everywhere you could put a number, a string or a name, you can use a macro instead), which come in three flavors, the first of which are block macros. A block macro is, as its name suggest, a block of code, wrapped inside a pair of brackets.  The syntax is the following :</p>
-<pre><code><span class="hl-7">macroName</span><span class="hl-1">(</span><span class="hl-2">arg1</span><span class="hl-1">; ...; </span><span class="hl-2">argn</span><span class="hl-1">) {</span><br/><span class="hl-1">    </span><span class="hl-2">stmt1</span><span class="hl-1">;</span><br/><span class="hl-1">    ...;</span><br/><span class="hl-1">    </span><span class="hl-2">stmtn</span><span class="hl-1">;</span><br/><span class="hl-1">};</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">macroName(arg1; ...; argn) {
+    stmt1;
+    ...;
+    stmtn;
+};
+</code><button type="button">Copy</button></pre>
 
 <p>where <code>stmti</code> and <code>argi</code> have to be valid expressions. The argument list is often called the head, while the statement list is called the body. Since line breaks and spaces are irrelevant, this is fine as well :</p>
-<pre><code><span class="hl-7">macro</span><span class="hl-1">(</span><br/><span class="hl-1">    </span><span class="hl-2">arg1</span><span class="hl-1">; </span><br/><span class="hl-1">    ...; </span><br/><span class="hl-1">    </span><span class="hl-2">argn</span><span class="hl-1">;</span><br/><span class="hl-1">) { </span><span class="hl-2">stmt1</span><span class="hl-1">; ...; </span><span class="hl-2">stmtn</span><span class="hl-1"> };</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">macro(
+    arg1; 
+    ...; 
+    argn;
+) { stmt1; ...; stmtn };
+</code><button type="button">Copy</button></pre>
 
 <p>Since macros are themselves expressions, you can nest them, operate on them, etc :</p>
-<pre><code><span class="hl-0">if</span><span class="hl-1"> (</span><span class="hl-4">false</span><span class="hl-1">) {            ##</span><br/><span class="hl-1">    </span><span class="hl-0">if</span><span class="hl-1"> (</span><span class="hl-4">true</span><span class="hl-1">) {         ##</span><br/><span class="hl-1">        </span><span class="hl-7">doSomething</span><span class="hl-1">()   ## </span><span class="hl-11">OK</span><br/><span class="hl-1">    }                   ##</span><br/><span class="hl-1">};                      ##    </span><br/><br/><span class="hl-6">3</span><span class="hl-1"> + </span><span class="hl-7">compute</span><span class="hl-1">() { ... };  ## </span><span class="hl-11">OK</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">if (false) {            ##
+    if (true) {         ##
+        doSomething()   ## OK
+    }                   ##
+};                      ##    
+
+3 + compute() { ... };  ## OK
+</code><button type="button">Copy</button></pre>
 
 <p>Additionnaly, a macro can be followed by one or more limbs. These are additionnal blocks of code preceded by an identifier :</p>
-<pre><code><span class="hl-0">if</span><span class="hl-1"> (</span><span class="hl-4">true</span><span class="hl-1">) {</span><br/><span class="hl-1">    </span><span class="hl-7">doSomething</span><span class="hl-1">();      ## </span><span class="hl-2">The</span><span class="hl-1"> </span><span class="hl-2">standard</span><span class="hl-1"> </span><span class="hl-2">macro</span><span class="hl-1"> </span><span class="hl-2">body</span><br/><span class="hl-1">} </span><span class="hl-0">else</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-7">doSomethingElse</span><span class="hl-1">();  ## </span><span class="hl-2">An</span><span class="hl-1"> </span><span class="hl-3">&#39;else&#39;</span><span class="hl-1"> </span><span class="hl-2">limb</span><br/><span class="hl-1">};</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">if (true) {
+    doSomething();      ## The standard macro body
+} else {
+    doSomethingElse();  ## An 'else' limb
+};
+</code><button type="button">Copy</button></pre>
 
 <p>Limbs must always be in the right order, but some can be omitted. For instance, if the macro is declared as try with limbs catch and finally :</p>
-<pre><code><span class="hl-0">try</span><span class="hl-1"> { };                        ## </span><span class="hl-11">OK</span><br/><span class="hl-0">try</span><span class="hl-1"> { } </span><span class="hl-0">finally</span><span class="hl-1"> { };            ## </span><span class="hl-11">OK</span><br/><span class="hl-0">try</span><span class="hl-1"> { } </span><span class="hl-0">catch</span><span class="hl-1"> { } </span><span class="hl-0">finally</span><span class="hl-1"> { };  ## </span><span class="hl-11">OK</span><br/><span class="hl-0">try</span><span class="hl-1"> { } </span><span class="hl-0">finally</span><span class="hl-1"> { } </span><span class="hl-0">catch</span><span class="hl-1"> { };  ## </span><span class="hl-11">NO</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">try { };                        ## OK
+try { } finally { };            ## OK
+try { } catch { } finally { };  ## OK
+try { } finally { } catch { };  ## NO
+</code><button type="button">Copy</button></pre>
 
 <p>Block macro syntax supports some syntactic sugar. If the head of a block macro is empty, then the parentheses are optional :</p>
-<pre><code><span class="hl-2">loop</span><span class="hl-1"> { </span><span class="hl-7">doThis</span><span class="hl-1">() }</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">loop { doThis() }
+</code><button type="button">Copy</button></pre>
 
 <p>If its body is made of one single statement, you can drop the brackets :</p>
-<pre><code><span class="hl-7">loop</span><span class="hl-1">() </span><span class="hl-7">doThis</span><span class="hl-1">() &lt;=&gt; </span><span class="hl-7">loop</span><span class="hl-1">() { </span><span class="hl-7">doThis</span><span class="hl-1">(); };</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">loop() doThis() <=> loop() { doThis(); };
+</code><button type="button">Copy</button></pre>
 
 <p>Both rules do hold at the same time :</p>
-<pre><code><span class="hl-2">loop</span><span class="hl-1"> </span><span class="hl-7">doThis</span><span class="hl-1">();  ## </span><span class="hl-11">OK</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">loop doThis();  ## OK
+</code><button type="button">Copy</button></pre>
 
 <p>However, it is not legal to drop the <code>{}</code> if the body is empty.</p>
-<pre><code><span class="hl-2">loop</span><span class="hl-1"> {};        ## </span><span class="hl-11">OK</span><br/><span class="hl-7">loop</span><span class="hl-1"> (</span><span class="hl-4">true</span><span class="hl-1">);    ## </span><span class="hl-11">NO</span><span class="hl-1"> </span><br/><span class="hl-2">loop</span><span class="hl-1">;           ## </span><span class="hl-11">NO</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">loop {};        ## OK
+loop (true);    ## NO 
+loop;           ## NO
+</code><button type="button">Copy</button></pre>
 
 <p>Same goes for the limbs :</p>
-<pre><code><span class="hl-0">if</span><span class="hl-1"> (</span><span class="hl-4">true</span><span class="hl-1">) { ... } </span><span class="hl-0">else</span><span class="hl-1"> #</span><span class="hl-0">throw</span><span class="hl-1"> </span><span class="hl-3">&quot;ERROR !&quot;</span><span class="hl-1">;    ## </span><span class="hl-11">OK</span><br/><span class="hl-0">if</span><span class="hl-1"> (</span><span class="hl-4">true</span><span class="hl-1">) { ... } </span><span class="hl-0">else</span><span class="hl-1"> {};                  ## </span><span class="hl-11">OK</span><br/><span class="hl-0">if</span><span class="hl-1"> (</span><span class="hl-4">true</span><span class="hl-1">) { ... } </span><span class="hl-0">else</span><span class="hl-1">;                     ## </span><span class="hl-11">NO</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">if (true) { ... } else #throw "ERROR !";    ## OK
+if (true) { ... } else {};                  ## OK
+if (true) { ... } else;                     ## NO
+</code><button type="button">Copy</button></pre>
 
 <h2 id="other-macro-forms" class="tsd-anchor-link">Other macro forms<a href="#other-macro-forms" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><p>There exist two more macro forms, which are also useful in a variety of situations.</p>
 <h3 id="inline-macros" class="tsd-anchor-link">Inline macros<a href="#inline-macros" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p>The first of these are inline macros, so called because they almost always are one-liners, much shorter than their block counterparts. They don't have a body, only a head.</p>
-<pre><code><span class="hl-0">return</span><span class="hl-1"> (</span><span class="hl-6">0</span><span class="hl-1">)                      ## </span><span class="hl-11">OK</span><br/><span class="hl-0">return</span><span class="hl-1"> (</span><span class="hl-4">true</span><span class="hl-1">; </span><span class="hl-4">false</span><span class="hl-1">);           ## </span><span class="hl-11">OK</span><br/><span class="hl-0">return</span><span class="hl-1"> (</span><span class="hl-6">0</span><span class="hl-1">) { ... };             ## </span><span class="hl-11">NO</span><span class="hl-1">, </span><span class="hl-2">an</span><span class="hl-1"> </span><span class="hl-2">inline</span><span class="hl-1"> </span><span class="hl-2">macro</span><span class="hl-1"> </span><span class="hl-2">can</span><span class="hl-3">&#39;t have a bod</span><span class="hl-10">y</span><br/><span class="hl-0">return</span><span class="hl-1"> (</span><span class="hl-6">0</span><span class="hl-1">) {};                  ## </span><span class="hl-11">NO</span><span class="hl-1">, </span><span class="hl-2">for</span><span class="hl-1"> </span><span class="hl-2">the</span><span class="hl-1"> </span><span class="hl-2">same</span><span class="hl-1"> </span><span class="hl-2">reason</span><br/><span class="hl-0">return</span><span class="hl-1"> { </span><span class="hl-3">&quot;hi&quot;</span><span class="hl-2">; </span><span class="hl-3">&quot;hello&quot;</span><span class="hl-1"> };       ## </span><span class="hl-11">OK</span><span class="hl-1">, </span><span class="hl-2">but</span><span class="hl-1"> </span><span class="hl-2">actually</span><span class="hl-1"> </span><span class="hl-2">calls</span><span class="hl-1"> </span><span class="hl-2">the</span><span class="hl-1"> </span><span class="hl-2">silent</span><span class="hl-1"> </span><span class="hl-2">macro</span><span class="hl-1">.</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">return (0)                      ## OK
+return (true; false);           ## OK
+return (0) { ... };             ## NO, an inline macro can't have a body
+return (0) {};                  ## NO, for the same reason
+return { "hi"; "hello" };       ## OK, but actually calls the silent macro.
+</code><button type="button">Copy</button></pre>
 
 <p>They can have limbs, but each limb must be a single expression.</p>
-<pre><code><span class="hl-7">import</span><span class="hl-1"> (</span><span class="hl-2">a</span><span class="hl-1">) </span><span class="hl-2">from</span><span class="hl-1"> </span><span class="hl-3">&quot;file&quot;</span><span class="hl-1">;                  </span><br/><span class="hl-7">import</span><span class="hl-1"> (</span><span class="hl-2">d</span><span class="hl-1">) </span><span class="hl-2">from</span><span class="hl-1"> { </span><span class="hl-3">&quot;file1&quot;</span><span class="hl-1">; </span><span class="hl-3">&quot;file2&quot;</span><span class="hl-1"> };    ## </span><span class="hl-2">Same</span><span class="hl-1"> </span><span class="hl-0">as</span><span class="hl-1"> </span><span class="hl-5">above</span><span class="hl-1"> : </span><span class="hl-2">it</span><span class="hl-3">&#39;s a call to the silent macr</span><span class="hl-10">o</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">import (a) from "file";                  
+import (d) from { "file1"; "file2" };    ## Same as above : it's a call to the silent macro
+</code><button type="button">Copy</button></pre>
 
 <p>The parentheses can be dropped if the head :</p>
 <ul>
@@ -154,37 +201,55 @@ this
 <li>contains exactly one expression, whether or not a limb is following : <code>import x from &quot;file&quot; &lt;=&gt; import (x) from &quot;file&quot;;</code></li>
 </ul>
 <p>Aside from that, they can't, because it will be ill-parsed.</p>
-<pre><code><span class="hl-0">break</span><span class="hl-1"> </span><span class="hl-9">at</span><span class="hl-1"> </span><span class="hl-2">externalLoop</span><span class="hl-1">;  &lt;=&gt;  </span><span class="hl-0">break</span><span class="hl-1"> (</span><span class="hl-2">at</span><span class="hl-1"> </span><span class="hl-2">externalLoop</span><span class="hl-1">);   ## </span><span class="hl-11">NO</span><br/><span class="hl-0">break</span><span class="hl-1"> () </span><span class="hl-2">at</span><span class="hl-1"> </span><span class="hl-2">externalLoop</span><span class="hl-1">;                               ## </span><span class="hl-11">OK</span><br/><span class="hl-0">import</span><span class="hl-1"> </span><span class="hl-2">x</span><span class="hl-1">;</span><span class="hl-2">y</span><span class="hl-1"> </span><span class="hl-0">from</span><span class="hl-1"> </span><span class="hl-3">&quot;file&quot;</span><span class="hl-1"> &lt;=&gt; (</span><span class="hl-2">import</span><span class="hl-1"> </span><span class="hl-2">x</span><span class="hl-1">); (</span><span class="hl-2">y</span><span class="hl-1"> </span><span class="hl-0">from</span><span class="hl-1"> </span><span class="hl-2">file</span><span class="hl-1">);   ## </span><span class="hl-11">NO</span><br/><span class="hl-7">import</span><span class="hl-1"> (</span><span class="hl-2">x</span><span class="hl-1">;</span><span class="hl-2">y</span><span class="hl-1">) </span><span class="hl-2">from</span><span class="hl-1"> </span><span class="hl-3">&quot;file&quot;</span><span class="hl-1">;                               ## </span><span class="hl-11">OK</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">break at externalLoop;  <=>  break (at externalLoop);   ## NO
+break () at externalLoop;                               ## OK
+import x;y from "file" <=> (import x); (y from file);   ## NO
+import (x;y) from "file";                               ## OK
+</code><button type="button">Copy</button></pre>
 
 <h3 id="declarative-macros" class="tsd-anchor-link">Declarative macros<a href="#declarative-macros" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p>The second kind is mostly used to mimic declarations of objects of some kind. They are called declarative macros and have a syntax that differs by quite a bit from the other two. Take for instance a declarative macro called <code>func</code>. Then :</p>
-<pre><code><span class="hl-2">func</span><span class="hl-1"> </span><span class="hl-7">f</span><span class="hl-1">(</span><span class="hl-2">arg1</span><span class="hl-1">, ..., </span><span class="hl-2">argn</span><span class="hl-1">) </span><span class="hl-2">returning</span><span class="hl-1"> </span><span class="hl-2">int</span><span class="hl-1"> { </span><br/><span class="hl-1">    </span><span class="hl-2">stmts</span><br/><span class="hl-1">}</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">func f(arg1, ..., argn) returning int { 
+    stmts
+}
+</code><button type="button">Copy</button></pre>
 
 <p>would be written, if <code>func</code> was a block macro, as :</p>
-<pre><code><span class="hl-7">func</span><span class="hl-1"> (</span><span class="hl-3">&#39;f, arg1, ..., argn) </span><span class="hl-10">{</span><br/><span class="hl-1">    </span><span class="hl-2">stmts</span><span class="hl-1"> </span><br/><span class="hl-1">} </span><span class="hl-2">returning</span><span class="hl-1"> </span><span class="hl-2">int</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">func ('f, arg1, ..., argn) {
+    stmts 
+} returning int
+</code><button type="button">Copy</button></pre>
 
 <p>i.e the thing (which has to be an identifier) that immediately follows the macro name is pushed at the front of the head as a <code>'literal</code>, and the limbs are located prior to the body. Also, said limbs, just like with inline macros, have to be a single expression ; should brackets be present, they will be understood as a call to the silent macro. The <code>()</code> can be dropped if the argument list is empty, but the <code>{}</code> around the body are mandatory.</p>
-<pre><code><span class="hl-1">## </span><span class="hl-11">OK</span><br/><span class="hl-4">class</span><span class="hl-1"> </span><span class="hl-5">A</span><span class="hl-1"> </span><span class="hl-4">extends</span><span class="hl-1"> </span><span class="hl-5">B</span><span class="hl-1"> {</span><br/><span class="hl-1">    ...</span><br/><span class="hl-1">};</span><br/><br/><span class="hl-1">## </span><span class="hl-11">NO</span><br/><span class="hl-4">class</span><span class="hl-1"> </span><span class="hl-5">A</span><span class="hl-1"> </span><span class="hl-4">extends</span><span class="hl-1"> </span><span class="hl-5">B</span><span class="hl-1">;</span><br/><br/><span class="hl-1">## </span><span class="hl-5">Technically</span><span class="hl-1"> </span><span class="hl-5">OK</span><span class="hl-1">, </span><span class="hl-5">but</span><span class="hl-1"> </span><span class="hl-5">NO</span><br/><span class="hl-4">class</span><span class="hl-1"> </span><span class="hl-5">A</span><span class="hl-1"> </span><span class="hl-4">extends</span><span class="hl-1"> </span><span class="hl-5">B</span><span class="hl-1"> </span><br/><span class="hl-1">    </span><span class="hl-7">constructor</span><span class="hl-1">() {  };</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">## OK
+class A extends B {
+    ...
+};
+
+## NO
+class A extends B;
+
+## Technically OK, but NO
+class A extends B 
+    constructor() {  };
+</code><button type="button">Copy</button></pre>
 
 <p>The last example will indeed be parsed as :</p>
-<pre><code><span class="hl-1">     </span><span class="hl-3">&quot;constructor&quot;</span><span class="hl-1"> </span><span class="hl-2">limb</span><span class="hl-1"> ----     --- </span><span class="hl-2">empty</span><span class="hl-1"> </span><span class="hl-2">body</span><br/><span class="hl-1">                           |     |</span><br/><span class="hl-4">class</span><span class="hl-1"> </span><span class="hl-5">A</span><span class="hl-1"> </span><span class="hl-4">extends</span><span class="hl-1"> </span><span class="hl-5">B</span><span class="hl-1"> </span><span class="hl-7">constructor</span><span class="hl-1"> () {};</span><br/><span class="hl-1">|        |                    | </span><br/><span class="hl-1">-- </span><span class="hl-2">macro</span><span class="hl-1"> |                    ---- [#</span><span class="hl-2">tuple</span><span class="hl-1">]</span><br/><span class="hl-1">         --- </span><span class="hl-3">&quot;extends&quot;</span><span class="hl-1"> </span><span class="hl-2">limb</span><span class="hl-1">  </span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">     "constructor" limb ----     --- empty body
+                           |     |
+class A extends B constructor () {};
+|        |                    | 
+-- macro |                    ---- [#tuple]
+         --- "extends" limb  
+</code><button type="button">Copy</button></pre>
 
 <p>And hence will crash, because your <code>class</code> macro likely didn't expect to have a <code>constructor</code> limb, and, even if it did, <code>[#tuple]</code> probably has nothing to do there.</p>
 <h3 id="the-silent-macro" class="tsd-anchor-link">The silent macro<a href="#the-silent-macro" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p>Finally, using a pair of curly brackets alone is understood as invoking a special macro named <code>''</code> (empty string), which we call the silent macro. It is technically a block macro.</p>
-<pre><code><span class="hl-1">{};</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">{};
+</code><button type="button">Copy</button></pre>
 
 <p>Just like a normal block macro, statements can be put inside. These will form the body of the macro :</p>
-<pre><code><span class="hl-1">{ </span><span class="hl-2">x</span><span class="hl-1">;</span><span class="hl-2">y</span><span class="hl-1">;</span><span class="hl-2">z</span><span class="hl-1"> };</span>
-</code><button>Copy</button></pre>
+<pre><code class="mc">{ x;y;z };
+</code><button type="button">Copy</button></pre>
 
-<p>Should you want to pass arguments and add limbs to the silent macro, you would write this :</p>
-<pre><code><span class="hl-3">``</span><span class="hl-1">(</span><span class="hl-2">arg1</span><span class="hl-1">; ...; </span><span class="hl-2">argn</span><span class="hl-1">) { </span><span class="hl-2">x</span><span class="hl-1">;</span><span class="hl-2">y</span><span class="hl-1">;</span><span class="hl-2">z</span><span class="hl-1"> } </span><span class="hl-2">limb</span><span class="hl-1"> { };</span>
-</code><button>Copy</button></pre>
-
-<p>But this is highly unclear, and it is made possible only because of how <code>`</code>-surrounded names work. Here, we literaly invoke the macro which has name <code>``</code> (empty string), which is simply the silent macro. It is highly recommended not to use this syntax at all.</p>
+<p>The block macro can't have a had or limbs.</p>
 </div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#micro-syntax-reference"><span>MICRO <wbr/>SYNTAX <wbr/>REFERENCE</span></a><ul><li><a href="#basic-syntax"><span>Basic syntax</span></a></li><li><a href="#primitives"><span>Primitives</span></a></li><li><a href="#precedence-and-arity"><span>Precedence and arity</span></a></li><li><a href="#implicit-operators"><span>Implicit operators</span></a></li><li><ul><li><a href="#string-formatting"><span>String formatting</span></a></li><li><a href="#number-formats"><span>Number formats</span></a></li><li><a href="#and-name-"><span>And #name ?</span></a></li></ul></li><li><a href="#macros"><span>Macros</span></a></li><li><a href="#other-macro-forms"><span>Other macro forms</span></a></li><li><ul><li><a href="#inline-macros"><span>Inline macros</span></a></li><li><a href="#declarative-macros"><span>Declarative macros</span></a></li><li><a href="#the-silent-macro"><span>The silent macro</span></a></li></ul></li></ul></div></details></div><div class="site-menu"><nav class="tsd-navigation"><a href="../modules.html">micro-lang</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>

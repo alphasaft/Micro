@@ -89,6 +89,7 @@ export function unwrapError<E>(e: E): Unwrapped<E> {
 
 export type Unwrapped<Error> = Error extends ReducerError<infer Inner> ? Inner : Error
 
+/** A contextualized wrapper for any error thrown in reducers. */
 export type { ReducerError }
 class ReducerError<Error> {
     private constructor(private err: Error, private stack: string[]) {}
@@ -97,14 +98,17 @@ class ReducerError<Error> {
         return err instanceof ReducerError ? err : new ReducerError(err as Unwrapped<Error>, []) 
     }
 
+    /** Returns the wrapped error. */
     unwrap() {
         return this.err
     }
 
+    /** Returns a contextualized representation of the wrapped error. */
     toString() {
         return `${this.stack.join(' :\n')} :\n${this.err}`
     }
 
+    /** Adds context to the error's stack trace. */
     contextualize(...info: string[]): this {
         this.stack.unshift(...info)
         return this

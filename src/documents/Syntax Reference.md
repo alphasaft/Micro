@@ -29,23 +29,23 @@ this
 
 
 There's two kind of operators, that differ only by their syntax : symbolic operators (any combination of these symbols : `&|~^@=+-*%/:.,?!<>`), and hash operators. These start with a `#` (hence the name), followed by one or more letters. For instance, this is the hash operator `#in` applied to the literals `'x` and `'list` :
-```
+```mc
 'x #in 'list;
 ```
 
 You can use hash operators just like normal operators, everywhere the latter appear :
-```
+```mc
 'condition = 'x #in 'list && 'y #notin 'list;
 ```
 
 Micro allows unary operators in a prefix form, as well as nullary operators (zero operands) :
-```
+```mc
 #print 'hi;   ## OK
 ?;          ## OK
 ```       
 
 If there's an ambiguity, enclose the problematic operator in square brackets or in parentheses :
-```
+```mc
 ? || 'x <=> (? (|| 3));  ## Probably not what was intended
 [?] || 'x                ## OK
 (?) || 'x                ## OK
@@ -53,7 +53,7 @@ If there's an ambiguity, enclose the problematic operator in square brackets or 
 
 
 Micro "packs" together operands to a same operator, so `'a + 'b + 'c` is neither `('a+'b)+'c`, nor `'a+('b+'c)`, but the operator `+` applied to `'a`, `'b` and `'c` simultaneously, effectively turning `+` into a ternary (3-operands) operator here. The explicit pack syntax allows to rewrite it in a more compact form if needed.
-```
+```mc
 [#op a;b;c;...;z] <=> a #op b #op c #op ... #op z
 ```
 The difference between both forms is purely syntactic.
@@ -74,19 +74,19 @@ With these rules, `x = y+1`, for instance, becomes under the hood ```[#name 'x] 
 ## Precedence and arity
 
 To know how an expression must be parsed, Micro relies on precedence ; this is a fancy word to say 'some operators go before others'. If `*` has higher precedence than `+` :
-```
+```mc
 1+2*3 <=> 1+(2*3);
 1*2+3 <=> (1*2)+3;
 ```
 
 If `#add` and `#sub` have the same precedence, the leftmost one always wins :
-```
+```mc
 1 #add 2 #sub 3 <=> (1 #add 2) #sub 3;
 1 #sub 2 #add 3 <=> (1 #sub 2) #add 3;
 ```
 
 Micro also enforces operator arity, which is yet another complicated word to mean 'how much operands an operator accepts'. So if + is declared with an arity of 2 :
-```
+```mc
 1+2;    ## OK
 1+2+3;  ## NO
 +1;     ## NO
@@ -96,46 +96,46 @@ Micro also enforces operator arity, which is yet another complicated word to mea
 ## Implicit operators         
 
 Some operators are implicitely generated when encountering certain syntactical structures, starting with the `#list` one.
-```
+```mc
 [a;b;c] <=> [#list a;b;c];
 [a] <=> [#list a];
 [] <=> [#list];
 ```
 
 Similarly, we also have `#tuple` :
-```
+```mc
 (a;b;c) <=> [#tuple a;b;c];
 (a;) <=> [#tuple a];    ## Warning, without the ';', it's understood as a simple parenthesized expression !
 () <=> [#tuple];
 ```
 
 Next up are `#call`...
-```
+```mc
 f(x;y;z) <=> [#call f;x;y;z];
 f(x) <=> [#call f;x];
 f() <=> [#call f];
 ```
 
 ...and `#index`.
-```
+```mc
 array[0;10] <=> [#index array;0;10];
 array[0] <=> [#index array;0] <=> array #index 0;
 array[] <=> [#index array];
 ```
 
 Note that the thing that's called/indexed can be any valid expression :
-```
+```mc
 (obj.method)(x) <=> [#call object.method;x];
 ("hello, " + "world !")[0] <=> [#index "hello, "+"world !";0];
 ```
 
 The precedence of `#call` and `#index` respectively are used to determine what is called/indexed. For instance, if + has lower precedence than `#index`, then :
-```
+```mc
 a+b[0] <=> a+(b[0])
 ```
 
 But if `.` has higher precedence than `#call`, then :
-```
+```mc
 a.b() <=> (a.b)()
 ```
 
@@ -145,13 +145,13 @@ Like we've seen, primitives also are implicit operators. There's a bit more than
 
 `#string` supports string formatting, as in :
 
-```
+```mc
 "Hi, {name} !"  <=>  [#string '`Hi, `; name; '` !`]
 ```
 
 Due to how it is implemented, a call to `#string` that emanated from a string formatting template always begins and ends with a literal, even if said literals must be empty to comply with that rule :
 
-```
+```mc
 "{expr}"  <=>  [#string '``; expr; '``];
 ```
 
@@ -173,7 +173,7 @@ For now, `#name` does not have any special semantics. That may change in the fut
 ## Macros
 
 Until there, we've only seem pretty standard - and simple - expressions, built out of literals and operators. But there's more to Micro than just numbers, strings and names, as it comes with something called macros. Macros are yet another kind of operand (meaning everywhere you could put a number, a string or a name, you can use a macro instead), which come in three flavors, the first of which are block macros. A block macro is, as its name suggest, a block of code, wrapped inside a pair of brackets.  The syntax is the following :
-```
+```mc
 macroName(arg1; ...; argn) {
     stmt1;
     ...;
@@ -181,7 +181,7 @@ macroName(arg1; ...; argn) {
 };
 ```
 where `stmti` and `argi` have to be valid expressions. The argument list is often called the head, while the statement list is called the body. Since line breaks and spaces are irrelevant, this is fine as well :
-```
+```mc
 macro(
     arg1; 
     ...; 
@@ -191,7 +191,7 @@ macro(
 
 
 Since macros are themselves expressions, you can nest them, operate on them, etc :
-```
+```mc
 if (false) {            ##
     if (true) {         ##
         doSomething()   ## OK
@@ -203,7 +203,7 @@ if (false) {            ##
 
 
 Additionnaly, a macro can be followed by one or more limbs. These are additionnal blocks of code preceded by an identifier :
-```
+```mc
 if (true) {
     doSomething();      ## The standard macro body
 } else {
@@ -212,7 +212,7 @@ if (true) {
 ```
 
 Limbs must always be in the right order, but some can be omitted. For instance, if the macro is declared as try with limbs catch and finally :
-```
+```mc
 try { };                        ## OK
 try { } finally { };            ## OK
 try { } catch { } finally { };  ## OK
@@ -220,22 +220,22 @@ try { } finally { } catch { };  ## NO
 ```
 
 Block macro syntax supports some syntactic sugar. If the head of a block macro is empty, then the parentheses are optional :
-```
+```mc
 loop { doThis() }
 ```
 
 If its body is made of one single statement, you can drop the brackets :
-```
+```mc
 loop() doThis() <=> loop() { doThis(); };
 ```
 
 Both rules do hold at the same time :
-```
+```mc
 loop doThis();  ## OK
 ```
 
 However, it is not legal to drop the `{}` if the body is empty.
-```
+```mc
 loop {};        ## OK
 loop (true);    ## NO 
 loop;           ## NO
@@ -243,7 +243,7 @@ loop;           ## NO
 
 
 Same goes for the limbs :
-```
+```mc
 if (true) { ... } else #throw "ERROR !";    ## OK
 if (true) { ... } else {};                  ## OK
 if (true) { ... } else;                     ## NO
@@ -258,7 +258,7 @@ There exist two more macro forms, which are also useful in a variety of situatio
 ### Inline macros
 
 The first of these are inline macros, so called because they almost always are one-liners, much shorter than their block counterparts. They don't have a body, only a head.
-```
+```mc
 return (0)                      ## OK
 return (true; false);           ## OK
 return (0) { ... };             ## NO, an inline macro can't have a body
@@ -267,7 +267,7 @@ return { "hi"; "hello" };       ## OK, but actually calls the silent macro.
 ```
 
 They can have limbs, but each limb must be a single expression.
-```
+```mc
 import (a) from "file";                  
 import (d) from { "file1"; "file2" };    ## Same as above : it's a call to the silent macro
 ```
@@ -277,7 +277,7 @@ The parentheses can be dropped if the head :
 - contains exactly one expression, whether or not a limb is following : `import x from "file" <=> import (x) from "file";`
 
 Aside from that, they can't, because it will be ill-parsed.
-```
+```mc
 break at externalLoop;  <=>  break (at externalLoop);   ## NO
 break () at externalLoop;                               ## OK
 import x;y from "file" <=> (import x); (y from file);   ## NO
@@ -288,7 +288,7 @@ import (x;y) from "file";                               ## OK
 
 The second kind is mostly used to mimic declarations of objects of some kind. They are called declarative macros and have a syntax that differs by quite a bit from the other two. Take for instance a declarative macro called `func`. Then :
 
-```
+```mc
 func f(arg1, ..., argn) returning int { 
     stmts
 }
@@ -296,7 +296,7 @@ func f(arg1, ..., argn) returning int {
 
 would be written, if `func` was a block macro, as :
 
-```
+```mc
 func ('f, arg1, ..., argn) {
     stmts 
 } returning int
@@ -304,7 +304,7 @@ func ('f, arg1, ..., argn) {
 
 i.e the thing (which has to be an identifier) that immediately follows the macro name is pushed at the front of the head as a `'literal`, and the limbs are located prior to the body. Also, said limbs, just like with inline macros, have to be a single expression ; should brackets be present, they will be understood as a call to the silent macro. The `()` can be dropped if the argument list is empty, but the `{}` around the body are mandatory.
 
-```
+```mc
 ## OK
 class A extends B {
     ...
@@ -320,7 +320,7 @@ class A extends B
 
 The last example will indeed be parsed as :
 
-```
+```mc
      "constructor" limb ----     --- empty body
                            |     |
 class A extends B constructor () {};
@@ -334,19 +334,13 @@ And hence will crash, because your `class` macro likely didn't expect to have a 
 ### The silent macro
 
 Finally, using a pair of curly brackets alone is understood as invoking a special macro named `''` (empty string), which we call the silent macro. It is technically a block macro.
-```
+```mc
 {};
 ```
 
 Just like a normal block macro, statements can be put inside. These will form the body of the macro :
-```
+```mc
 { x;y;z };
 ```
 
-Should you want to pass arguments and add limbs to the silent macro, you would write this :
-
-```
-``(arg1; ...; argn) { x;y;z } limb { };
-```
-
-But this is highly unclear, and it is made possible only because of how ``` ` ```-surrounded names work. Here, we literaly invoke the macro which has name ``` `` ``` (empty string), which is simply the silent macro. It is highly recommended not to use this syntax at all.
+The block macro can't have a had or limbs.
